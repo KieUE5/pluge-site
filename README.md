@@ -60,7 +60,7 @@ You'll set up three free or low-cost accounts in this order: Shopify, then Print
 1. In **Settings**:
    - **Store details:** currency GBP.
    - **Taxes and duties:** prices include VAT.
-   - **Shipping and delivery:** one UK rate, *UK delivery* at £4.95, plus a free version for orders of £75 or more. Keep this in step with `SHIP` in `catalog.js`.
+   - **Shipping and delivery:** one UK rate, *UK delivery* at £4.99, free for orders of £75 or more (Shopify can do both in one rate). Keep this in step with `SHIP` in `catalog.js`.
    - **Payments:** Shopify Payments (this also gives Apple Pay and Google Pay) and PayPal.
    - **Policies:** paste in the text of this site's `/returns/`, `/privacy/` and `/terms/` pages.
 2. Install Shopify's **Headless** sales channel, create a storefront, and copy its **public access token**.

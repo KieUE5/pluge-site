@@ -46,7 +46,7 @@ window.PLUGE = (() => {
   // 2–5 working days in the UK). "days" is the whole wait in working days, used for the dates the shop
   // shows; "make" is Printful's part of it. Set the same price in Shopify under Settings > Shipping and delivery.
   const SHIP = {
-    std: { name: "UK delivery", fee: 4.95, freeOver: 75, make: [2, 5], days: [5, 10] },
+    std: { name: "UK delivery", fee: 4.99, freeOver: 75, make: [2, 5], days: [5, 10] },
   };
 
   // England and Wales bank holidays, skipped when estimating delivery dates.
