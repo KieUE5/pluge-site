@@ -17,7 +17,7 @@ window.PLUGE = (() => {
     office: "",          // registered office address, on one line
     returnsAddress: "",  // where returns go, if it isn't the registered office
     vat: "",             // e.g. "GB 123 4567 89"; leave empty if you aren't VAT registered
-    email: "",           // customer service email
+    email: "pluge.shop@outlook.com", // customer service email
     phone: "",           // optional
   };
 
