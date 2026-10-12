@@ -8,6 +8,19 @@ window.PLUGE = (() => {
   // After changing it (for example to your own domain), run: node tools/build-pages.cjs
   const SITE_URL = "https://kieue5.github.io/pluge-site/";
 
+  // Your business details. UK law requires them on any website that sells. They fill in the footer
+  // and the terms, returns and privacy pages; anything left empty shows as [square brackets].
+  // After changing them, the pages are rebuilt automatically when you push (see README).
+  const COMPANY = {
+    legalName: "",       // your company's registered name, e.g. "Pluge Clothing Ltd"
+    companyNumber: "",   // from Companies House
+    office: "",          // registered office address, on one line
+    returnsAddress: "",  // where returns go, if it isn't the registered office
+    vat: "",             // e.g. "GB 123 4567 89"; leave empty if you aren't VAT registered
+    email: "",           // customer service email
+    phone: "",           // optional
+  };
+
   // Checkout. While shopDomain is empty the bag shows a "preview, not taking orders" message.
   // To take real payments, set up a Shopify store (see README, "Take real orders with Shopify"),
   // then fill these in. The Storefront token is a public token, so it is safe to publish here.
@@ -192,5 +205,5 @@ window.PLUGE = (() => {
       pieces: [["off-air-tee", "black"], ["static-cargo", "black"]] },
   ];
 
-  return { BRAND, SITE_URL, CHECKOUT, DROP_02, SHIP, BANK_HOLIDAYS, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS };
+  return { BRAND, SITE_URL, COMPANY, CHECKOUT, DROP_02, SHIP, BANK_HOLIDAYS, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS };
 })();

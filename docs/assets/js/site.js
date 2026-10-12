@@ -34,6 +34,9 @@
   let still = root.dataset.motion === "off"; // true when animation is off
 
   document.querySelectorAll(".glitch").forEach(el => { el.dataset.text = el.textContent; });
+  // Links to other pages (terms, returns...) are fixed to the site root now, before the address can
+  // move to a product page and change what a relative link points at.
+  document.querySelectorAll('a[href]:not([href^="#"]):not([href*=":"])').forEach(a => { a.href = new URL(a.getAttribute("href"), ROOT).href; });
 
   // ---- Product images --------------------------------------------------------
   const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));

@@ -30,7 +30,7 @@ Every push to `main` republishes the site automatically.
 2. In **Settings → Pages → Custom domain**, enter it and save. GitHub adds a `docs/CNAME` file.
 3. At your registrar, point the domain at GitHub Pages ([GitHub's guide](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site)).
 4. Tick **Enforce HTTPS** once it's available.
-5. Change `SITE_URL` in `docs/assets/js/catalog.js` to the new address (ending in `/`), then run `node tools/build-pages.cjs` and push.
+5. Change `SITE_URL` in `docs/assets/js/catalog.js` to the new address (ending in `/`) and push. The pages rebuild themselves (see below).
 
 ## What's where
 
@@ -41,22 +41,22 @@ Every push to `main` republishes the site automatically.
 | `docs/assets/js/site.js` | Page behaviour |
 | `docs/assets/css/site.css` | Styles |
 | `docs/p/<product>/index.html` | Product pages. Made by `tools/build-pages.cjs`, so don't edit them by hand. |
+| `docs/terms/`, `docs/returns/`, `docs/privacy/` | Terms of sale, returns (with the cancellation form) and privacy and cookies. Made by `tools/build-pages.cjs` from `tools/policies.cjs`. |
 | `docs/sitemap.xml`, `docs/robots.txt` | Made by `tools/build-pages.cjs` |
 | `docs/assets/img/products/` | Product photos for each product, colour and view, at 1000×1200 and 500×600 |
 | `docs/assets/img/lookbook/` | Lookbook photos at full and half width |
 | `docs/assets/img/og/` | Share images for each product (what appears when a link is posted) |
 | `docs/assets/fonts/` | Self-hosted Archivo and IBM Plex Mono (SIL Open Font License, licences included) |
 | `tools/` | Scripts that build the photos, product pages, share images and the Shopify import file |
+| `.github/workflows/rebuild-pages.yml` | Rebuilds the product and policy pages automatically after you push |
 
 ### Common edits
 
-After **any** change to `docs/index.html` or `catalog.js`, run this and commit what it changes (it needs Node, nothing else):
+Edit `docs/index.html` or `catalog.js` (on your computer, or with the pencil icon on GitHub) and push. A GitHub workflow then rebuilds the product pages, policy pages and footer, commits them as "Rebuild product and policy pages", and republishes the site, usually within two minutes. You can watch it under the repository's **Actions** tab.
 
-```bash
-node tools/build-pages.cjs
-```
+To rebuild on your own computer instead, run `node tools/build-pages.cjs` (it needs Node, nothing else). `node tools/build-pages.cjs --check` tells you whether anything is out of date.
 
-Product pages are copies of `index.html` with their own title and share tags, so they go stale if you skip this. `node tools/build-pages.cjs --check` tells you whether anything is out of date.
+- **Add your business details:** fill in `COMPANY` at the top of `catalog.js` (company name and number, registered office, returns address, VAT number, email). They appear in the footer and on the terms, returns and privacy pages; until then those pages show [square brackets].
 
 - **Change a price, mark a size sold out or add a colour:** edit the product in `catalog.js`. A new colour also needs photos (see below). Once Shopify is connected, prices and stock come from Shopify instead.
 - **Rename the brand:** change `BRAND` in `catalog.js`, replace "PLUGE" in `docs/index.html`, `docs/404.html`, `tools/recipes.cjs` and `tools/meta.html`, then rebuild the photos, share images and pages.
@@ -67,7 +67,9 @@ Product pages are copies of `index.html` with their own title and share tags, so
 
 The bag is already wired to Shopify's Storefront API. Once it's connected, the site reads live stock and prices from Shopify, and **Checkout** sends the shopper to Shopify's own checkout to pay. Shopify then handles payment, delivery choice, VAT, order emails and refunds.
 
-1. **Create a store** at [shopify.com](https://www.shopify.com) (Basic plan or higher). In **Settings**:
+**Want to try it free first?** Sign up for a free [Shopify Partner account](https://www.shopify.com/partners) and create a *development store*. Development stores cost nothing and take test orders, so you can follow the steps below and test the whole checkout before paying. When you're ready to sell, transfer the store to yourself and pick a plan. Shopify's normal sign-up also has a short free trial; check [Shopify's UK pricing page](https://www.shopify.com/uk/pricing) for the current offer.
+
+1. **Create a store** at [shopify.com](https://www.shopify.com) (Basic plan or higher), or a development store as above. In **Settings**:
    - **Store details:** currency GBP.
    - **Taxes and duties:** prices include VAT.
    - **Shipping and delivery:** add *Royal Mail Tracked 48* at £4.95 with a free version for orders of £75 or more, and *Royal Mail Tracked 24* at £5.95. Keep these in step with `SHIP` in `catalog.js`, which the site uses for its estimates.
@@ -133,10 +135,10 @@ Checked on 12 October 2026 against a local copy of the site:
 ## Before taking real orders
 
 - [ ] **Payments.** Connect Shopify ([steps above](#take-real-orders-with-shopify)) and place a test order. Use guest checkout as the default.
-- [ ] **Photos.** Replace the AI-generated product and lookbook photos with real ones, and update the model heights and sizes in `LOOKS` (`catalog.js`). The current lookbook also shows other companies' logos (TV sets, trainers), which you'd want to avoid in real marketing.
-- [ ] **Company details.** Fill in the bracketed placeholders in the footer of `docs/index.html`: company name and number, registered office, VAT number and contact email.
-- [ ] **Policy pages.** Add privacy, terms, cookies, and returns with a model cancellation form.
+- [ ] **Photos.** Replace the AI-generated product and lookbook photos with real ones, and update the model heights and sizes in `LOOKS` (`catalog.js`). Other companies' logos (TV makers' names, the trainer brand) have been retouched out of the current lookbook (`tools/retouch-lookbook.py`).
+- [ ] **Company details.** Fill in `COMPANY` in `catalog.js`. Until then the footer and policy pages show [square brackets].
+- [x] **Policy pages.** Terms of sale, returns with the model cancellation form, and privacy and cookies are at `/terms/`, `/returns/` and `/privacy/`. Have a solicitor read them before you sell, and add your email provider by name to the privacy page once drop alerts are connected.
 - [ ] **Drop alerts.** Connect an email tool that records consent and puts an unsubscribe link in every email, then replace the preview message in `site.js`.
 - [ ] **Stock.** Keep "Low stock", "Sold out" and the countdown true to reality (DMCC Act 2024 / CMA guidance).
-- [ ] **Search engines.** Remove `<meta name="robots" content="noindex">` from `docs/index.html`, take the preview line out of the ticker and the note under the lookbook, then run `node tools/build-pages.cjs`.
-- [ ] **Brand name.** Check the UK IPO trade mark register (class 25) for whatever name you launch with.
+- [ ] **Search engines.** Remove `<meta name="robots" content="noindex">` from `docs/index.html` and take the preview line out of the ticker and the note under the lookbook. The pages rebuild when you push.
+- [ ] **Brand name.** Web searches on 12 October 2026 found no clothing brand called PLUGE. The nearest names were a US trade mark "THE PLUG" for clothing and the New York label Plugged NYC. That isn't a register search: before launch, search "PLUGE" in class 25 on the [UK IPO register](https://trademarks.ipo.gov.uk/ipo-tmtext) (free, a couple of minutes), and consider filing your own application.

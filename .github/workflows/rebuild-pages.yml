@@ -1,0 +1,49 @@
+name: Rebuild pages
+
+# Keeps the product, policy and share pages in step with docs/index.html and catalog.js, so editing
+# those files (even straight on GitHub) is enough. If anything changed, it commits the rebuilt pages
+# and asks GitHub Pages to publish them.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/index.html
+      - docs/404.html
+      - docs/assets/js/catalog.js
+      - tools/build-pages.cjs
+      - tools/policies.cjs
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: rebuild-pages
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Rebuild pages
+        run: node tools/build-pages.cjs
+      - name: Commit and publish any changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git status --porcelain docs)" ]; then
+            echo "Pages were already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs
+          git commit -m "Rebuild product and policy pages"
+          git push
+          # A push made with this workflow's token may not start a Pages build by itself, so ask for one.
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Couldn't request a Pages build; the next push will publish these pages."

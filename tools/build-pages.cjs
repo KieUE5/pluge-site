@@ -1,5 +1,6 @@
-// Writes the share and search tags at the top of docs/index.html, a page for every product at
-// docs/p/<id>/index.html, docs/sitemap.xml, docs/robots.txt, and the base address in docs/404.html.
+// Writes the share and search tags at the top of docs/index.html, the business details in its footer,
+// a page for every product at docs/p/<id>/index.html, the terms, returns and privacy pages (from
+// tools/policies.cjs), docs/sitemap.xml, docs/robots.txt, and the base address in docs/404.html.
 //
 // Run it after changing docs/index.html or docs/assets/js/catalog.js. It needs Node but no npm install.
 //   node tools/build-pages.cjs          write the files
@@ -13,7 +14,8 @@ const CHECK = process.argv.includes("--check");
 
 const sandbox = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(DOCS, "assets", "js", "catalog.js"), "utf8"), sandbox);
-const { BRAND, SITE_URL, PRODUCTS, COLOURS, CATS, SHIP } = sandbox.window.PLUGE;
+const { BRAND, SITE_URL, PRODUCTS, COLOURS, CATS, SHIP, COMPANY } = sandbox.window.PLUGE;
+const policies = require("./policies.cjs")({ BRAND, COMPANY, SHIP });
 if (!/^https?:\/\/[^/]+\/(.*\/)?$/.test(SITE_URL)) throw new Error(`SITE_URL in catalog.js must be a full address ending in "/", not "${SITE_URL}"`);
 const BASE_PATH = new URL(SITE_URL).pathname;
 
@@ -100,7 +102,16 @@ function productLd(p) {
 }
 
 const META_RE = /  <!-- page-meta:[\s\S]*?<!-- \/page-meta -->/;
-const template = fs.readFileSync(path.join(DOCS, "index.html"), "utf8");
+const COMPANY_RE = /(<!-- company:[^>]*-->\s*)<span class="foot-legal">[\s\S]*?<\/span>(\s*<!-- \/company -->)/;
+
+// The footer line every UK trading website needs. Empty details show as [square brackets].
+const co = (k, placeholder) => COMPANY[k] && String(COMPANY[k]).trim() ? esc(COMPANY[k]) : `[${placeholder}]`;
+const companyLine = `${esc(BRAND)} is a trading name of ${co("legalName", "company name")}, registered in England and Wales, company no. ${co("companyNumber", "company number")}. ` +
+  `Registered office: ${co("office", "address")}.${COMPANY.vat ? ` VAT no. ${esc(COMPANY.vat)}.` : ""} Contact: ${co("email", "email address")}.`;
+
+let template = fs.readFileSync(path.join(DOCS, "index.html"), "utf8");
+if (!COMPANY_RE.test(template)) throw new Error("docs/index.html has lost its <!-- company --> ... <!-- /company --> footer block");
+template = template.replace(COMPANY_RE, `$1<span class="foot-legal">${companyLine}</span>$2`);
 if (!META_RE.test(template)) throw new Error("docs/index.html has lost its <!-- page-meta --> ... <!-- /page-meta --> block");
 if (/<base\b/.test(template)) throw new Error("docs/index.html shouldn't have a <base> tag; product pages get their own");
 
@@ -130,7 +141,46 @@ for (const p of PRODUCTS) {
   out.set(path.join(DOCS, "p", p.id, "index.html"), html);
 }
 
-const urls = [SITE_URL, ...PRODUCTS.map(productUrl)];
+// Terms, returns and privacy pages: one folder down, sharing the site's styles.
+const noindex = /<meta name="robots" content="noindex">/.test(template);
+const policyLinks = `<nav class="foot-links" aria-label="Policies">${policies.map(pg => `<a href="${pg.dir}/">${esc(pg.title)}</a>`).join("")}</nav>`;
+for (const pg of policies) {
+  out.set(path.join(DOCS, pg.dir, "index.html"), `<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <base href="../">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${esc(pg.title)} · ${esc(BRAND)}</title>
+  <meta name="description" content="${esc(pg.desc)}">
+  <link rel="canonical" href="${SITE_URL}${pg.dir}/">
+${noindex ? '  <meta name="robots" content="noindex">\n' : ""}  <meta name="theme-color" content="#0C0C10">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="${pg.dir}/#main">Skip to content</a>
+<header class="site-head legal-head">
+  <div class="wrap head-row">
+    <a class="logo" href="./" aria-label="${esc(BRAND)} home"><span class="logo-bars" aria-hidden="true"><i style="background:#C8C8C8"></i><i style="background:#E9DF00"></i><i style="background:#00CFD6"></i><i style="background:#00BF3A"></i><i style="background:#D000C4"></i><i style="background:#E3141C"></i><i style="background:#1426E0"></i></span><span>${esc(BRAND)}</span></a>
+    <a class="btn" href="./#shop">Back to the shop</a>
+  </div>
+</header>
+<main class="wrap legal" id="main">
+${pg.body.replace(/^\n/, "")}
+</main>
+<footer class="foot">
+  <div class="wrap foot-small">
+    <span class="foot-legal">${companyLine}</span>
+    ${policyLinks}
+  </div>
+</footer>
+</body>
+</html>
+`);
+}
+
+const urls = [SITE_URL, ...PRODUCTS.map(productUrl), ...policies.map(pg => `${SITE_URL}${pg.dir}/`)];
 out.set(path.join(DOCS, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${u}</loc></url>`).join("\n")}\n</urlset>\n`);
 out.set(path.join(DOCS, "robots.txt"), `# Only read by search engines when the site is on its own domain.\nUser-agent: *\nAllow: /\nSitemap: ${SITE_URL}sitemap.xml\n`);
 
