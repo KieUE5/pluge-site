@@ -44,13 +44,13 @@ The garments started as blank mid-grey product photos generated with Figma AI. `
 
 ```bash
 cd tools
-./fetch-blanks.sh          # downloads the blank photos listed in blanks.tsv into tools/blanks
 npm install                # Playwright and the fonts used for the prints
 npm run build-images       # writes docs/assets/img/products/*.webp
 node build-meta.cjs        # writes the social share image and the iPhone icon
 ```
 
 - **Print positions and colours** live in `tools/recipes.cjs`. Positions are fractions of the garment's outline.
+- **The blank photos** are saved in `tools/blanks/`. (`fetch-blanks.sh` re-downloads them from Figma, but those links expired on 19 Oct 2026.)
 - **Swapping in real photos:** shoot each blank garment in mid-grey on a white background, save it as `tools/blanks/<garment>-<view>.png`, and rebuild.
 
 ## Before taking real orders
