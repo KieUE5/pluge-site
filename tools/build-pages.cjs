@@ -21,8 +21,8 @@ const BASE_PATH = new URL(SITE_URL).pathname;
 
 const HOME = {
   title: `${BRAND} · Drop 01: Test Pattern`,
-  desc: `${BRAND} makes heavyweight streetwear in small runs. Drop 01, Test Pattern: hoodies, tees, cargos and accessories printed with TV colour bars.`,
-  shareDesc: "Heavyweight streetwear printed with the colour bars a telly shows when the signal drops.",
+  desc: `${BRAND} makes streetwear to order. Drop 01, Test Pattern: hoodies, tees, joggers and accessories printed with TV colour bars.`,
+  shareDesc: "Streetwear printed with the colour bars a telly shows when the signal drops, made to order.",
 };
 
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
@@ -56,7 +56,7 @@ function metaBlock({ title, desc, shareDesc = desc, url, image, imageAlt, type, 
 }
 
 function productLd(p) {
-  const t48 = SHIP.t48;
+  const ship = SHIP[Object.keys(SHIP)[0]];
   const data = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -78,22 +78,22 @@ function productLd(p) {
       itemCondition: "https://schema.org/NewCondition",
       shippingDetails: {
         "@type": "OfferShippingDetails",
-        shippingRate: { "@type": "MonetaryAmount", value: p.price >= t48.freeOver ? 0 : t48.fee, currency: "GBP" },
+        shippingRate: { "@type": "MonetaryAmount", value: p.price >= ship.freeOver ? 0 : ship.fee, currency: "GBP" },
         shippingDestination: { "@type": "DefinedRegion", addressCountry: "GB" },
         deliveryTime: {
           "@type": "ShippingDeliveryTime",
-          handlingTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 2, unitCode: "DAY" },
-          // SHIP days are the whole wait, so the carrier's part is what's left after 1-2 days to dispatch.
-          transitTime: { "@type": "QuantitativeValue", minValue: t48.days[0] - 1, maxValue: t48.days[1] - 2, unitCode: "DAY" },
+          // Made to order: handling is Printful's making time, transit is what's left of the whole wait.
+          handlingTime: { "@type": "QuantitativeValue", minValue: ship.make[0], maxValue: ship.make[1], unitCode: "DAY" },
+          transitTime: { "@type": "QuantitativeValue", minValue: ship.days[0] - ship.make[0], maxValue: ship.days[1] - ship.make[1], unitCode: "DAY" },
         },
       },
       hasMerchantReturnPolicy: {
         "@type": "MerchantReturnPolicy",
         applicableCountry: "GB",
         returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
-        merchantReturnDays: 30,
+        merchantReturnDays: 14,
         returnMethod: "https://schema.org/ReturnByMail",
-        returnFees: "https://schema.org/FreeReturn",
+        returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
       },
     },
   };
@@ -124,7 +124,7 @@ out.set(path.join(DOCS, "index.html"), template.replace(META_RE, metaBlock({
 
 for (const p of PRODUCTS) {
   const colours = listing(p.colours.map(k => COLOURS[k].name));
-  const desc = `${p.blurb} ${gbp(p.price)}, in ${colours}. Free UK delivery over ${gbp(SHIP.t48.freeOver)}.`;
+  const desc = `${p.blurb} ${gbp(p.price)}, in ${colours}. Made to order, with free UK delivery over ${gbp(SHIP[Object.keys(SHIP)[0]].freeOver)}.`;
   const html = template
     .replace(META_RE, metaBlock({
       title: `${p.name} · ${BRAND}`, desc, url: productUrl(p), type: "product",

@@ -315,3 +315,31 @@ window.renderRecipe = async function (r) {
   for (const s of r.sizes) files.push({ suffix: s.suffix, b64: await frame(a, out, [s.w, s.h]) });
   return { files, bbox: a.bbox, pieces: a.pieces.length };
 };
+
+// Flat, full-size artwork for the printer (see build-print-files.cjs). With "knockout", the lettering
+// is cut out of the logo box so the garment's own colour shows through, which suits any colour.
+window.renderPrintFile = async function ({ kind, widthPx, brand, box, ink, knockout }) {
+  await loadFonts();
+  let art;
+  if (kind === "osd" && knockout) {
+    const t = textBox(brand, 900, "expanded");
+    const padX = 46, padY = 26, s = widthPx / (t.w + padX * 2);
+    const [c, ctx] = canvas(widthPx, (t.asc + padY * 2) * s);
+    ctx.fillStyle = box;
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.globalCompositeOperation = "destination-out";
+    drawText(ctx, brand, padX * s, (padY + t.asc) * s, 100 * s, 900, "expanded", "#000");
+    art = c;
+  } else if (kind === "stripe") {
+    const [c, ctx] = canvas(widthPx, widthPx / 9);
+    drawBars(ctx, 0, 0, c.width, c.height);
+    art = c;
+  } else {
+    art = PRINTS[kind]({ brand, box, ink }, widthPx);
+  }
+  const blob = await art.convertToBlob({ type: "image/png" });
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return { b64: btoa(bin), w: art.width, h: art.height };
+};

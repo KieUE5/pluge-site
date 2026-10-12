@@ -125,7 +125,9 @@ kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 
 @media (max-width:900px){.nav{gap:18px}}
 @media (max-width:760px){.nav{display:none}.motion-txt{display:none}}
 .bag-ico{display:none}
-@media (max-width:420px){.head-tools{gap:0}.motion-btn{padding:0 8px}.bag-txt{display:none}.bag-ico{display:block}.bag-btn{gap:6px;padding-left:8px}}
+@media (max-width:420px){.head-tools{gap:0}.motion-btn{padding:0 8px}.bag-txt{display:none}.bag-ico{display:block}.bag-btn{gap:6px;padding-left:8px}.icon-btn{min-width:40px;padding:0 8px}}
+@media (max-width:340px){.logo-bars{display:none}}
+@media (max-width:374px){.logo{gap:7px;font-size:17px}.logo-bars{grid-template-columns:repeat(7,2.4px);height:17px}.motion-btn{padding:0 6px}.icon-btn{min-width:36px;padding:0 6px}.bag-btn{padding:0 4px 0 6px}}
 
 /* Hero TV */
 .hero{padding-block:28px 56px}
@@ -611,6 +613,8 @@ legend b{font-weight:600}
 .ship-opts legend{margin-bottom:6px}
 .ship-opt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:2px solid var(--line);cursor:pointer}
 .ship-opt:has(input:checked){border-color:var(--ink)}
+.ship-list{display:grid;gap:6px}
+.ship-opt.one{grid-template-columns:minmax(0,1fr) auto;margin:0;cursor:default}
 .ship-opt input{width:18px;height:18px;margin:0;accent-color:var(--signal)}
 .ship-opt b{display:block;font-size:13px}
 .ship-opt small{display:block;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
@@ -623,6 +627,38 @@ legend b{font-weight:600}
 .ship-fine{margin:0;font-size:13px;color:var(--muted)}
 .btn.small{min-height:34px;padding:0 12px;font-size:12px}
 .saved-fine{margin:0;padding:12px 20px;border-top:1px solid var(--line);font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+
+/* Account */
+.account-btn{position:relative}
+.acct-dot{position:absolute;top:8px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 2px var(--bg)}
+.acct-body{flex:1;display:grid;align-content:start;gap:18px;padding:18px 20px 28px;overflow:auto}
+.acct-tabs{display:grid;grid-template-columns:1fr 1fr;border:2px solid var(--ink)}
+.acct-tabs button{min-height:44px;border:0;background:none;cursor:pointer;font-family:var(--font-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.acct-tabs button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.acct-form{display:grid;gap:12px}
+.acct-form .link-btn{justify-self:start;font-size:14px}
+.acct-h{margin:0;font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.field{display:grid;gap:6px;font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+.field input{height:48px;padding:0 12px;border:2px solid var(--ink);border-radius:0;background:var(--surface);color:var(--ink);font-family:var(--font-body);font-size:16px;letter-spacing:0;text-transform:none}
+.acct-msg{margin:0;font-family:var(--font-mono);font-size:13px}
+.acct-msg:empty{display:none}
+.acct-perks{margin:0;padding:14px 16px 14px 34px;background:var(--bg);font-size:14px}
+.acct-perks li{margin:4px 0}
+.acct-preview{margin:0;padding:12px 14px;border:2px dashed var(--line);font-size:14px}
+.acct-hello:focus{outline:none}
+.acct-hello:focus-visible{outline:3px solid var(--signal);outline-offset:4px}
+.acct-name{margin:6px 0 0;font-family:var(--font-display);font-size:30px;font-weight:900;font-stretch:125%;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
+.acct-email{margin:6px 0 0;font-family:var(--font-mono);font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.acct-sec{display:grid;gap:10px;padding-top:16px;border-top:1px solid var(--line)}
+.acct-sec p{margin:0;font-size:14px}
+.acct-row{display:flex;flex-wrap:wrap;gap:8px}
+.acct-orders{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.acct-orders li{display:grid;gap:6px;padding:12px;border:2px solid var(--line)}
+.ord-top,.ord-bottom{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px;font-family:var(--font-mono);font-size:13px}
+.ord-items{margin:0;font-size:14px}
+.ord-status{font-weight:600;color:var(--signal)}
+.btn.danger{border-color:var(--alert);color:var(--alert)}
+.btn.danger:hover{box-shadow:5px 5px 0 var(--alert)}
 
 /* Shop the look */
 .kit-intro{padding:14px 20px;border-bottom:1px solid var(--line)}

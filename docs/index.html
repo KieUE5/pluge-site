@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- page-meta: tools/build-pages.cjs writes this block, here and on every product page -->
   <title>PLUGE · Drop 01: Test Pattern</title>
-  <meta name="description" content="PLUGE makes heavyweight streetwear in small runs. Drop 01, Test Pattern: hoodies, tees, cargos and accessories printed with TV colour bars.">
+  <meta name="description" content="PLUGE makes streetwear to order. Drop 01, Test Pattern: hoodies, tees, joggers and accessories printed with TV colour bars.">
   <link rel="canonical" href="https://kieue5.github.io/pluge-site/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PLUGE">
   <meta property="og:title" content="PLUGE · Drop 01: Test Pattern">
-  <meta property="og:description" content="Heavyweight streetwear printed with the colour bars a telly shows when the signal drops.">
+  <meta property="og:description" content="Streetwear printed with the colour bars a telly shows when the signal drops, made to order.">
   <meta property="og:url" content="https://kieue5.github.io/pluge-site/">
   <meta property="og:image" content="https://kieue5.github.io/pluge-site/assets/img/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -42,16 +42,16 @@
     <div class="ticker-group">
       <span>Preview site: not taking orders yet</span>
       <span>Drop 01: Test Pattern is live</span>
-      <span>Free UK Tracked 48 delivery over £75</span>
+      <span>Free UK delivery over £75</span>
       <span>Drop 02 lands Fri 30 Oct, 18:00 GMT</span>
-      <span>Free returns within 30 days</span>
+      <span>Every piece made to order</span>
     </div>
     <div class="ticker-group" aria-hidden="true">
       <span>Preview site: not taking orders yet</span>
       <span>Drop 01: Test Pattern is live</span>
-      <span>Free UK Tracked 48 delivery over £75</span>
+      <span>Free UK delivery over £75</span>
       <span>Drop 02 lands Fri 30 Oct, 18:00 GMT</span>
-      <span>Free returns within 30 days</span>
+      <span>Every piece made to order</span>
     </div>
   </div>
 </div>
@@ -74,6 +74,7 @@
     <div class="head-tools">
       <button class="motion-btn" type="button" id="motion-toggle"><span class="motion-ico" aria-hidden="true"></span><span class="motion-txt">Pause motion</span></button>
       <button class="icon-btn search-btn" type="button" id="search-open" aria-haspopup="dialog" aria-keyshortcuts="/ Control+K Meta+K" aria-label="Search"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span class="icon-txt">Search</span><kbd aria-hidden="true">/</kbd></button>
+      <button class="icon-btn account-btn" type="button" id="account-open" aria-haspopup="dialog" aria-label="Account"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c.8-4 3.8-6.2 7.5-6.2s6.7 2.2 7.5 6.2"/></svg><span class="acct-dot" id="account-dot" hidden></span></button>
       <button class="icon-btn saved-btn" type="button" id="saved-open" aria-haspopup="dialog" aria-label="Saved, 0 pieces"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg><span class="pip-count" id="saved-count" hidden>0</span></button>
       <button class="bag-btn" type="button" id="bag-open" aria-haspopup="dialog"><svg class="ico bag-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="bag-txt">Bag</span> <span class="count" id="bag-count">0</span></button>
     </div>
@@ -112,7 +113,7 @@
       <p class="eyebrow">Drop 01 · Out now · 8 pieces</p>
       <h1 class="hero-title wide glitch" id="hero-title">Test Pattern</h1>
       <div class="hero-row">
-        <p>Heavyweight cotton cut boxy, printed with the colour bars a telly shows when the signal drops. One small run per drop.</p>
+        <p>Hoodies, tees and caps printed with the colour bars a telly shows when the signal drops. Every piece is made to order, just for you.</p>
         <div class="ctas">
           <a class="btn primary" href="#shop">Shop Drop 01</a>
           <a class="btn" href="#drop-02" id="hero-drop-cta">Drop 02 countdown</a>
@@ -129,10 +130,10 @@
   <section class="specs" aria-label="Fabric and delivery">
     <div class="wrap">
       <ul>
-        <li><span class="spec-num">450<small>GSM</small></span><p>Hoodie and crew fleece, brushed inside</p></li>
-        <li><span class="spec-num">280<small>GSM</small></span><p>Tee jersey, preshrunk so it keeps its size</p></li>
-        <li><span class="spec-num">£75</span><p>Spend this for free UK Tracked 48 delivery</p></li>
-        <li><span class="spec-num">30<small>DAYS</small></span><p>Free returns on unworn pieces</p></li>
+        <li><span class="spec-num">270<small>GSM</small></span><p>Hoodie and crew fleece, soft on the inside</p></li>
+        <li><span class="spec-num">207<small>GSM</small></span><p>Garment-dyed, ring-spun cotton tees</p></li>
+        <li><span class="spec-num">£75</span><p>Spend this for free UK delivery</p></li>
+        <li><span class="spec-num">14<small>DAYS</small></span><p>To change your mind after delivery</p></li>
       </ul>
     </div>
   </section>
@@ -151,15 +152,7 @@
         <label class="pick" for="size-filter">Size
           <select id="size-filter">
             <option value="">Any size</option>
-            <optgroup label="Tops">
-              <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
-            </optgroup>
-            <optgroup label="Waist">
-              <option>28</option><option>30</option><option>32</option><option>34</option><option>36</option>
-            </optgroup>
-            <optgroup label="Socks">
-              <option>UK 6–8</option><option>UK 9–11</option>
-            </optgroup>
+            <option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option>
           </select>
         </label>
         <label class="pick" for="sort">Sort
@@ -192,7 +185,7 @@
           <p class="eyebrow">Lookbook · Drop 01</p>
           <h2 class="wide glitch glitch-hover" id="look-title">On air</h2>
         </div>
-        <p class="look-note">Drop 01 out in the world, plus two studio fit checks with the model's height and size. Pick a look to shop every piece in it.</p>
+        <p class="look-note">Drop 01 out in the world, plus two studio fit checks with the model's height and size. Pick a look to shop the pieces in it; the cargo trousers are styling only.</p>
       </div>
       <div class="looks" id="looks"></div>
       <p class="look-fine">Preview images made with AI. They'll be replaced by a real shoot before launch.</p>
@@ -268,8 +261,8 @@
         <h2 class="wide" id="about-title">Named after the darkest bars on the test card</h2>
       </div>
       <div>
-        <p>PLUGE stands for picture line-up generation equipment: the strip of near-black bars in the corner of a test card that engineers used to set a screen's black level. PLUGE makes heavyweight streetwear in small runs, and each drop takes one thing from broadcast TV and builds a handful of pieces around it.</p>
-        <p>Fleece is 450gsm and brushed on the inside. Tees are 280gsm and preshrunk, so the size you buy is the size you keep.</p>
+        <p>PLUGE stands for picture line-up generation equipment: the strip of near-black bars in the corner of a test card that engineers used to set a screen's black level. PLUGE makes streetwear to order, and each drop takes one thing from broadcast TV and builds a handful of pieces around it.</p>
+        <p>Nothing is printed until you order it, so there's no pile of unsold stock. Each piece is made for you and posted straight to your door.</p>
       </div>
     </div>
   </section>
@@ -288,10 +281,10 @@
       <div id="delivery">
         <h3>Delivery &amp; returns</h3>
         <ul>
-          <li>Royal Mail Tracked 48: £4.95, free over £75</li>
-          <li>Royal Mail Tracked 24: £5.95</li>
+          <li>UK delivery: £4.95, free over £75</li>
+          <li>Made to order, usually with you in 5–10 working days</li>
           <li>Dispatched within 1–2 working days</li>
-          <li>Free returns within 30 days, plus your legal 14-day right to cancel</li>
+          <li>14 days to change your mind</li>
           <li><a href="returns/">Returns and refunds</a></li>
         </ul>
       </div>
@@ -355,7 +348,7 @@
         <button class="btn primary block" type="submit" id="pd-add" disabled>Select a size</button>
         <button class="btn save-big" type="button" id="pd-save" aria-pressed="false" aria-label="Save"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg></button>
       </div>
-      <p class="pd-returns">Free returns within 30 days · <button class="link-btn" type="button" id="pd-returns-link">Delivery and returns</button></p>
+      <p class="pd-returns">14 days to change your mind · <button class="link-btn" type="button" id="pd-returns-link">Delivery and returns</button></p>
       <div>
         <details open id="pd-fabric-wrap">
           <summary>Fabric &amp; fit</summary>
@@ -385,9 +378,8 @@
         </details>
         <details id="pd-returns-wrap">
           <summary>Delivery &amp; returns</summary>
-          <p>Royal Mail Tracked 48: £4.95, or free when your order is £75 or more. Royal Mail Tracked 24: £5.95. Orders are dispatched within 1–2 working days.</p>
-          <p>Free returns within 30 days of delivery on unworn pieces with tags attached.</p>
-          <p>You also have a legal right to cancel within 14 days of delivery. We refund within 14 days of receiving your return, including the standard delivery charge you paid.</p>
+          <p>UK delivery: £4.95, or free when your order is £75 or more. Every piece is made to order, so it usually arrives 5–10 working days after you order.</p>
+          <p>Changed your mind? Tell us within 14 days of delivery, then send it back within 14 days. Return postage is yours to pay unless the piece is faulty. We refund within 14 days of getting it back, including the delivery charge you paid.</p>
           <p><a href="returns/">Returns, refunds and the cancellation form</a></p>
         </details>
       </div>
@@ -417,8 +409,7 @@
     <div class="bag-foot" id="bag-foot">
       <fieldset class="ship-opts">
         <legend>Delivery</legend>
-        <label class="ship-opt"><input type="radio" name="ship" value="t48" checked><span><b>Royal Mail Tracked 48</b><small id="est-t48"></small></span><em id="fee-t48"></em></label>
-        <label class="ship-opt"><input type="radio" name="ship" value="t24"><span><b>Royal Mail Tracked 24</b><small id="est-t24"></small></span><em id="fee-t24"></em></label>
+        <div class="ship-list" id="ship-list"></div>
       </fieldset>
       <dl class="totals">
         <dt>Subtotal</dt><dd id="t-sub"></dd>
@@ -463,6 +454,16 @@
       <button class="btn primary" type="button" id="saved-shop">Shop Drop 01</button>
     </div>
     <p class="saved-fine">Saved pieces are kept on this device only.</p>
+  </div>
+</dialog>
+
+<dialog class="drawer" id="account" aria-labelledby="account-title">
+  <div class="bag account">
+    <div class="bag-head">
+      <h2 class="wide" id="account-title">Account</h2>
+      <button class="x" type="button" id="account-close" aria-label="Close account">×</button>
+    </div>
+    <div class="acct-body" id="acct-body"></div>
   </div>
 </dialog>
 

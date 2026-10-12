@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const { BRAND, SHIP, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS, CHECKOUT } = window.PLUGE;
+  const { BRAND, SHIP, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS, CHECKOUT, ACCOUNTS } = window.PLUGE;
   const DROP_02 = new Date(window.PLUGE.DROP_02);
   const BANK_HOLIDAYS = new Set(window.PLUGE.BANK_HOLIDAYS);
   const BAG_KEY = "pluge-bag-v1";
@@ -29,6 +29,8 @@
   const HOME_TITLE = root.dataset.homeTitle || document.title;
   // Change the address bar only on the real site, not in an embedded preview or a file opened from disk.
   const ROUTING = window.self === window.top && /^https?:$/.test(location.protocol);
+  // Account state, used by the bag, saved and recently viewed code to save changes to the account.
+  let sb = null, user = null, applying = false, pushTimer = 0;
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const narrowScreen = window.matchMedia("(max-width: 640px)").matches;
   let still = root.dataset.motion === "off"; // true when animation is off
@@ -100,6 +102,7 @@
     const a = addWorkingDays(now, SHIP[key].days[0]), b = addWorkingDays(now, SHIP[key].days[1]);
     return `${dayName(a, a.getMonth() !== b.getMonth())} – ${dayName(b, true)}`;
   }
+  const SHIP_KEYS = Object.keys(SHIP);
   const shipFee = (key, sub) => SHIP[key].freeOver !== null && sub >= SHIP[key].freeOver ? 0 : SHIP[key].fee;
 
   // ---- Effects: TV static -----------------------------------------------------
@@ -244,7 +247,7 @@
   tv.addEventListener("focusout", e => { if (!tv.contains(e.relatedTarget)) tvFocus = false; });
 
   // ---- Velocity marquee ------------------------------------------------------
-  const MQ_WORDS = [[BRAND, ""], ["Test pattern", "outline"], ["Drop 01", ""], ["450gsm", "outline"], ["Heavyweight", ""], ["Boxy fit", "outline"]];
+  const MQ_WORDS = [[BRAND, ""], ["Test pattern", "outline"], ["Drop 01", ""], ["Made to order", "outline"], ["Garment-dyed", ""], ["Relaxed fit", "outline"]];
   const glyph = `<span class="mq-glyph"></span>`;
   const mqGroup = words => words.map(([t, cls]) => `<span class="mq-item ${cls}">${esc(t)}${glyph}</span>`).join("");
   const mqA = $("#mq-a"), mqB = $("#mq-b");
@@ -428,10 +431,10 @@
       </figure>`;
     }).join("") + `<div class="look-tile">
         <p class="eyebrow">Fit notes</p>
-        <p class="tile-big wide">Boxy on purpose</p>
+        <p class="tile-big wide">Size up for slouch</p>
         <div class="tile-body">
-          <p>Hoodies, crews and tees are cut boxy with a dropped shoulder. Take your usual size for the fit in these photos, or one size down for a closer fit.</p>
-          <p>Cargos are a relaxed straight leg. Take your usual waist size.</p>
+          <p>Hoodies, crews and tees are a classic relaxed fit. Take your usual size, or one size up for the oversized look in these photos.</p>
+          <p>Joggers are relaxed and tapered. Take your usual size.</p>
           <p class="tile-small">Every product has a size guide, and a size finder that matches a top you already own.</p>
         </div>
       </div>`;
@@ -686,7 +689,7 @@
     $("#pd-eyebrow").textContent = `Drop 01 · ${CATS.find(c => c.id === p.cat).label}`;
     $("#pd-name").textContent = p.name;
     $("#pd-price").textContent = price(p.price);
-    $("#pd-ship").textContent = `UK delivery ${money(SHIP.t48.fee)}, free over ${price(SHIP.t48.freeOver)} · Estimated delivery ${estimate("t48")}`;
+    $("#pd-ship").textContent = `Made to order · ${SHIP[SHIP_KEYS[0]].name} ${money(SHIP[SHIP_KEYS[0]].fee)}, free over ${price(SHIP[SHIP_KEYS[0]].freeOver)} · Estimated delivery ${estimate(SHIP_KEYS[0])}`;
     $("#pd-blurb").textContent = p.blurb;
     $("#pd-fabric").textContent = p.fabric;
     $("#pd-details").innerHTML = p.details.map(d => `<li>${esc(d)}</li>`).join("");
@@ -932,20 +935,22 @@
 
   // ---- Bag -----------------------------------------------------------------
   const bagDlg = $("#bag");
-  let bag = loadBag(), shipKey = "t48";
+  let bag = loadBag(), shipKey = SHIP_KEYS[0];
   const fresh = new Set(); // lines just added, highlighted the next time the bag opens
 
+  // Keeps only lines for products, colours and sizes that still exist (from this browser or the account).
+  function cleanBag(v) {
+    if (!Array.isArray(v)) return [];
+    return v.filter(l => l && byId[l.id] && COLOURS[l.colour] && byId[l.id].colours.includes(l.colour) &&
+      byId[l.id].sizes.includes(l.size) && Number.isInteger(l.qty) && l.qty > 0)
+      .map(l => ({ id: l.id, colour: l.colour, size: l.size, qty: Math.min(l.qty, MAX_QTY) }));
+  }
   function loadBag() {
-    try {
-      const v = JSON.parse(localStorage.getItem(BAG_KEY) || "[]");
-      if (!Array.isArray(v)) return [];
-      return v.filter(l => l && byId[l.id] && COLOURS[l.colour] && byId[l.id].colours.includes(l.colour) &&
-        byId[l.id].sizes.includes(l.size) && Number.isInteger(l.qty) && l.qty > 0)
-        .map(l => ({ id: l.id, colour: l.colour, size: l.size, qty: Math.min(l.qty, MAX_QTY) }));
-    } catch { return []; }
+    try { return cleanBag(JSON.parse(localStorage.getItem(BAG_KEY) || "[]")); } catch { return []; }
   }
   function saveBag() {
     try { localStorage.setItem(BAG_KEY, JSON.stringify(bag)); } catch { /* storage unavailable; bag lasts for this visit */ }
+    markDirty();
   }
   const lineKey = l => `${l.id}|${l.colour}|${l.size}`;
 
@@ -981,14 +986,16 @@
     $("#ship").hidden = empty;
     if (empty) { $("#bag-lines").innerHTML = ""; return; }
 
-    const left = SHIP.t48.freeOver - sub;
-    $("#ship-msg").textContent = left > 0 ? `Spend ${money(left)} more for free Tracked 48 delivery` : "You've got free Tracked 48 delivery";
-    $("#ship-bar").style.width = `${Math.min(100, (sub / SHIP.t48.freeOver) * 100)}%`;
-    ["t48", "t24"].forEach(k => {
+    const main = SHIP[SHIP_KEYS[0]], left = main.freeOver - sub;
+    $("#ship-msg").textContent = left > 0 ? `Spend ${money(left)} more for free ${main.name}` : `You've got free ${main.name}`;
+    $("#ship-bar").style.width = `${Math.min(100, (sub / main.freeOver) * 100)}%`;
+    // One delivery option shows as a line; several become a choice.
+    const several = SHIP_KEYS.length > 1;
+    $("#ship-list").innerHTML = SHIP_KEYS.map(k => {
       const fee = shipFee(k, sub);
-      $(`#fee-${k}`).textContent = fee ? money(fee) : "Free";
-      $(`#est-${k}`).textContent = `Estimated ${estimate(k)}`;
-    });
+      const body = `<span><b>${esc(SHIP[k].name)}</b><small>Made to order, estimated ${estimate(k)}</small></span><em>${fee ? money(fee) : "Free"}</em>`;
+      return several ? `<label class="ship-opt"><input type="radio" name="ship" value="${k}"${k === shipKey ? " checked" : ""}>${body}</label>` : `<p class="ship-opt one">${body}</p>`;
+    }).join("");
 
     $("#bag-lines").innerHTML = bag.map(l => {
       const p = byId[l.id], k = lineKey(l);
@@ -1069,20 +1076,22 @@
     if (json.errors && json.errors.length) throw new Error(json.errors[0].message);
     return json.data;
   }
-  // Shopify products are matched by handle (= product id here), then by their Colour and Size options.
+  // Shopify products (created by Printful) are matched by handle (= product id here) or by title, then by
+  // their Colour and Size options.
   const optKey = v => norm(v).replace(/[^a-z0-9]+/g, "");
   const VARIANTS_Q = `query PlugeVariants {
-    products(first: 100) { nodes { handle variants(first: 100) { nodes {
+    products(first: 100) { nodes { handle title variants(first: 100) { nodes {
       id availableForSale price { amount currencyCode } selectedOptions { name value }
     } } } }
   }`;
   function loadVariants() {
     if (variantsP) return variantsP;
     const colourByName = new Map(Object.entries(COLOURS).map(([k, c]) => [optKey(c.name), k]));
+    const byTitle = new Map(PRODUCTS.map(p => [optKey(p.name), p]));
     variantsP = storefront(VARIANTS_Q).then(data => {
       const map = new Map();
       for (const prod of data.products.nodes) {
-        const p = byId[prod.handle];
+        const p = byId[prod.handle] || byTitle.get(optKey(prod.title));
         if (!p) continue;
         for (const v of prod.variants.nodes) {
           const opt = re => v.selectedOptions.find(o => re.test(o.name));
@@ -1135,7 +1144,7 @@
       }
       const data = await storefront(`mutation PlugeCart($input: CartInput!) {
         cartCreate(input: $input) { cart { checkoutUrl } userErrors { field message } }
-      }`, { input: { lines: bag.map(l => ({ merchandiseId: map.get(lineKey(l)).id, quantity: l.qty })), buyerIdentity: { countryCode: "GB" } } });
+      }`, { input: { lines: bag.map(l => ({ merchandiseId: map.get(lineKey(l)).id, quantity: l.qty })), buyerIdentity: { countryCode: "GB", ...(user && user.email ? { email: user.email } : {}) } } });
       const { cart, userErrors } = data.cartCreate;
       if (userErrors && userErrors.length) throw new Error(userErrors[0].message);
       window.location.assign(cart.checkoutUrl);
@@ -1165,6 +1174,7 @@
     const on = !isSaved(id);
     saved = on ? [{ id, colour }, ...saved] : saved.filter(x => x.id !== id);
     writeList(SAVED_KEY, saved);
+    markDirty();
     syncSavedButtons(id);
     if (savedDlg.open) renderSaved();
     announce(on ? `Saved ${byId[id].name}.` : `Removed ${byId[id].name} from saved.`);
@@ -1224,6 +1234,7 @@
   function noteRecent(id, colour) {
     recent = [{ id, colour }, ...recent.filter(x => x.id !== id)].slice(0, 8);
     writeList(RECENT_KEY, recent);
+    markDirty();
   }
   function renderRecent() {
     $("#recent").hidden = recent.length === 0;
@@ -1239,11 +1250,326 @@
   $("#recent-clear").addEventListener("click", () => {
     recent = [];
     writeList(RECENT_KEY, recent);
+    markDirty();
     renderRecent();
     announce("Cleared recently viewed.");
     $("#shop-title").setAttribute("tabindex", "-1");
     $("#shop-title").focus();
   });
+
+  // ---- Customer accounts (Supabase) -----------------------------------------
+  // An account keeps the bag, saved pieces and recently viewed in the database, so they follow the shopper
+  // to any device, and lists their Shopify orders. The database's row rules keep each shopper's data private
+  // (tools/supabase/schema.sql). Without ACCOUNTS settings the panel explains that it's a preview.
+  const acctCfg = ACCOUNTS && ACCOUNTS.supabaseUrl && ACCOUNTS.supabaseKey ? ACCOUNTS : null;
+  const SYNC_KEY = "pluge-sync-v1"; // { user, dirty }: whether this device has changes the account hasn't got yet
+  const acctDlg = $("#account");
+  let acctView = "signin", acctMsg = "", acctBusy = false, orders = null, confirmDelete = false;
+
+  function readSync() { try { return JSON.parse(localStorage.getItem(SYNC_KEY) || "{}") || {}; } catch { return {}; } }
+  function writeSync(v) { try { localStorage.setItem(SYNC_KEY, JSON.stringify(v)); } catch { /* kept for this visit */ } }
+  const cleanPicks = v => Array.isArray(v) ? v.filter(validPick).map(x => ({ id: x.id, colour: x.colour })) : [];
+  const mergePicks = (a, b) => [...a, ...b.filter(x => !a.some(y => y.id === x.id))];
+  function mergeBags(a, b) {
+    const out = a.map(l => ({ ...l }));
+    for (const l of b) {
+      const hit = out.find(x => lineKey(x) === lineKey(l));
+      if (hit) hit.qty = Math.max(hit.qty, l.qty); else out.push({ ...l });
+    }
+    return out;
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = () => reject(new Error("the accounts library didn't load"));
+      document.head.appendChild(el);
+    });
+  }
+  async function initAccounts() {
+    if (!acctCfg) return;
+    try {
+      if (!window.supabase) await loadScript(`${ROOT}assets/js/vendor/supabase-2.117.2.js`);
+      sb = window.supabase.createClient(acctCfg.supabaseUrl, acctCfg.supabaseKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "pluge-auth" },
+      });
+      // Supabase asks for other calls to wait until its auth callback has returned, hence the timeout.
+      sb.auth.onAuthStateChange((event, session) => { setTimeout(() => onAuth(event, session), 0); });
+    } catch (err) { console.warn(`PLUGE: accounts are unavailable: ${err.message}`); }
+  }
+
+  async function onAuth(event, session) {
+    const next = session ? session.user : null, prev = user;
+    user = next;
+    if (event === "PASSWORD_RECOVERY") { acctView = "newpass"; acctMsg = ""; openAccount(); }
+    syncAccountButton();
+    if (next && (!prev || prev.id !== next.id)) {
+      orders = null;
+      // Signing in on this device brings the guest bag along; a returning visit loads the account's.
+      await pullState(event === "SIGNED_IN" ? "merge" : "load");
+      if (event === "SIGNED_IN" && prev === null) announce(`Signed in as ${next.email}.`);
+    } else if (!next && prev) {
+      clearShopperState();
+    }
+    // Redraw only when who's signed in changes, so messages like "password saved" stay put.
+    const changed = (prev && prev.id) !== (next && next.id);
+    if (acctDlg.open && (changed || event === "PASSWORD_RECOVERY")) {
+      renderAccount();
+      if (user && acctView !== "newpass") $("#acct-hello").focus();
+    }
+  }
+
+  function markDirty() {
+    if (!user || applying) return;
+    writeSync({ user: user.id, dirty: true });
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushState, 700);
+  }
+  async function pushState() {
+    clearTimeout(pushTimer);
+    if (!user || !sb) return;
+    const { error } = await sb.from("shopper_state").upsert({ user_id: user.id, bag, saved, recent, updated_at: new Date().toISOString() });
+    if (error) console.warn(`PLUGE: couldn't save to your account: ${error.message}`);
+    else writeSync({ user: user.id, dirty: false });
+  }
+  async function pullState(mode) {
+    const { data, error } = await sb.from("shopper_state").select("bag,saved,recent").eq("user_id", user.id).maybeSingle();
+    if (error) { console.warn(`PLUGE: couldn't load your account: ${error.message}`); return; }
+    const info = readSync();
+    // Changes made on this device that never reached the account win over the copy in the account.
+    if (mode === "load" && info.user === user.id && info.dirty) { await pushState(); return; }
+    const remote = { bag: cleanBag(data && data.bag), saved: cleanPicks(data && data.saved), recent: cleanPicks(data && data.recent) };
+    if (mode === "merge") {
+      bag = mergeBags(remote.bag, bag);
+      saved = mergePicks(saved, remote.saved).slice(0, 60);
+      recent = mergePicks(recent, remote.recent).slice(0, 8);
+    } else {
+      bag = remote.bag;
+      saved = remote.saved.slice(0, 60);
+      recent = remote.recent.slice(0, 8);
+    }
+    applyShopperState();
+    if (mode === "merge" || !data) await pushState(); else writeSync({ user: user.id, dirty: false });
+  }
+  function applyShopperState() {
+    applying = true;
+    saveBag();
+    writeList(SAVED_KEY, saved);
+    writeList(RECENT_KEY, recent);
+    applying = false;
+    fresh.clear();
+    renderBag();
+    syncSavedButtons();
+    renderRecent();
+    if (savedDlg.open) renderSaved();
+  }
+  // Signing out leaves nothing of the account on a shared device.
+  function clearShopperState() {
+    bag = []; saved = []; recent = [];
+    applyShopperState();
+    writeSync({});
+  }
+
+  function syncAccountButton() {
+    $("#account-dot").hidden = !user;
+    $("#account-open").setAttribute("aria-label", user ? `Account, signed in as ${user.email}` : "Account, sign in");
+  }
+
+  const AUTH_VIEWS = {
+    signin: { title: "Sign in", submit: "Sign in", fields: [["email", "Email", "email", "email"], ["password", "Password", "password", "current-password"]] },
+    create: { title: "Create an account", submit: "Create account", fields: [["name", "First name", "text", "given-name"], ["email", "Email", "email", "email"], ["password", "Password, 8 or more characters", "password", "new-password"]] },
+    reset: { title: "Reset your password", submit: "Email me a reset link", fields: [["email", "Email", "email", "email"]] },
+    newpass: { title: "Choose a new password", submit: "Save password", fields: [["password", "New password, 8 or more characters", "password", "new-password"]] },
+  };
+  const PERKS = `<ul class="acct-perks"><li>Your bag and saved pieces on every device</li><li>Your orders and tracking in one place</li><li>Your email filled in at checkout</li></ul>`;
+
+  function authFormHtml() {
+    const v = AUTH_VIEWS[acctView] ? acctView : "signin", cfg = AUTH_VIEWS[v];
+    const tabs = v === "signin" || v === "create" ? `<div class="acct-tabs" role="group" aria-label="Sign in or create an account">
+        <button type="button" data-view="signin" aria-pressed="${v === "signin"}">Sign in</button><button type="button" data-view="create" aria-pressed="${v === "create"}">Create account</button></div>` : "";
+    const fields = cfg.fields.map(([n, label, type, ac]) =>
+      `<label class="field" for="acct-${n}"><span>${label}</span><input id="acct-${n}" name="${n}" type="${type}" autocomplete="${ac}"${type === "email" ? ' inputmode="email" autocapitalize="off" spellcheck="false"' : ""} required></label>`).join("");
+    const after = v === "signin" ? `<button class="link-btn" type="button" data-view="reset">Forgot your password?</button>`
+      : v === "reset" ? `<button class="link-btn" type="button" data-view="signin">Back to sign in</button>` : "";
+    return `${acctCfg ? "" : `<p class="acct-preview">Preview: accounts switch on once the shop's customer database is connected.</p>`}
+      ${tabs}
+      <form class="acct-form" id="acct-form" data-view="${v}" novalidate>
+        <h3 class="acct-h">${cfg.title}</h3>
+        ${fields}
+        <p class="acct-msg" id="acct-msg" role="status">${esc(acctMsg)}</p>
+        <button class="btn primary block" type="submit"${acctBusy ? " disabled" : ""}>${cfg.submit}</button>
+        ${after}
+      </form>
+      ${v === "signin" || v === "create" ? PERKS : ""}`;
+  }
+
+  const ORDER_STATUS = o => o.cancelled_at ? "Cancelled" : o.financial_status === "refunded" ? "Refunded"
+    : o.fulfillment_status === "fulfilled" ? "Sent" : o.fulfillment_status === "partial" ? "Partly sent" : "Being made";
+  function ordersHtml() {
+    if (orders === null || orders === "loading") return `<p>Loading your orders…</p>`;
+    if (orders === "error") return `<p>Your orders couldn't load just now. Try again later.</p>`;
+    if (!orders.length) return `<p>No orders yet. Orders you place with ${esc(user.email)} will show up here.</p>`;
+    return `<ul class="acct-orders">${orders.map(o => {
+      const when = new Date(o.created_at);
+      const items = (Array.isArray(o.items) ? o.items : []).map(i => `${esc(i.title)}${i.variant ? ` (${esc(i.variant)})` : ""}${i.qty > 1 ? ` × ${i.qty}` : ""}`).join(", ");
+      const track = /^https:\/\//.test(o.status_url || "") ? `<a href="${esc(o.status_url)}" target="_blank" rel="noopener">Track order<span class="vh"> ${esc(o.order_number)} (opens in a new tab)</span></a>` : "";
+      return `<li><div class="ord-top"><b>Order ${esc(o.order_number)}</b><span>${isNaN(when) ? "" : dayName(when, true) + " " + when.getFullYear()}</span></div>
+        ${items ? `<p class="ord-items">${items}</p>` : ""}
+        <div class="ord-bottom"><span class="ord-status">${ORDER_STATUS(o)}</span><span>${o.total != null ? gbp2.format(Number(o.total)) : ""}</span>${track}</div></li>`;
+    }).join("")}</ul>`;
+  }
+  async function loadOrders() {
+    if (!sb || !user || orders === "loading") return;
+    orders = "loading";
+    const { data, error } = await sb.from("orders").select("order_number,created_at,total,currency,financial_status,fulfillment_status,cancelled_at,status_url,items")
+      .order("created_at", { ascending: false }).limit(20);
+    orders = error ? "error" : data || [];
+    if (error) console.warn(`PLUGE: couldn't load orders: ${error.message}`);
+    const box = $("#acct-orders");
+    if (box) box.innerHTML = ordersHtml();
+  }
+
+  function signedInHtml() {
+    const name = (user.user_metadata && user.user_metadata.name) || "";
+    const count = bag.reduce((n, l) => n + l.qty, 0);
+    return `<div class="acct-hello" id="acct-hello" tabindex="-1"><p class="eyebrow">Signed in</p><p class="acct-name">${name ? `Hi ${esc(name)}` : "Hi"}</p><p class="acct-email">${esc(user.email)}</p></div>
+      ${acctMsg ? `<p class="acct-msg" role="status">${esc(acctMsg)}</p>` : ""}
+      <section class="acct-sec" aria-labelledby="acct-orders-h"><h3 class="acct-h" id="acct-orders-h">Your orders</h3><div id="acct-orders">${ordersHtml()}</div></section>
+      <section class="acct-sec" aria-labelledby="acct-kept-h"><h3 class="acct-h" id="acct-kept-h">Bag and saved</h3>
+        <p>${count} ${count === 1 ? "piece" : "pieces"} in your bag and ${saved.length} saved, kept in your account so they're here on any device you sign in on.</p>
+        <div class="acct-row"><button class="btn small" type="button" data-act="bag">Open bag</button><button class="btn small" type="button" data-act="saved">Open saved</button></div></section>
+      <section class="acct-sec" aria-labelledby="acct-pass-h"><h3 class="acct-h" id="acct-pass-h">Change password</h3>
+        <form class="acct-form" id="acct-pass" novalidate><label class="field" for="acct-newpass"><span>New password, 8 or more characters</span><input id="acct-newpass" name="password" type="password" autocomplete="new-password" required></label>
+        <p class="acct-msg" id="acct-pass-msg" role="status"></p><button class="btn small" type="submit">Save password</button></form></section>
+      <div class="acct-row"><button class="btn block" type="button" data-act="signout">Sign out</button></div>
+      <section class="acct-sec" aria-labelledby="acct-del-h"><h3 class="acct-h" id="acct-del-h">Delete account</h3>
+        <p>This deletes your account and the bag and saved pieces kept in it. We keep order records for six years, as tax law requires.</p>
+        ${confirmDelete ? `<div class="acct-row"><button class="btn small danger" type="button" data-act="delete-yes">Yes, delete my account</button><button class="btn small" type="button" data-act="delete-no">Keep my account</button></div>`
+          : `<div class="acct-row"><button class="btn small danger" type="button" data-act="delete">Delete my account</button></div>`}</section>`;
+  }
+
+  function renderAccount() {
+    const body = $("#acct-body");
+    if (user && acctView !== "newpass") {
+      body.innerHTML = signedInHtml();
+      if (orders === null) loadOrders();
+    } else body.innerHTML = authFormHtml();
+  }
+  function openAccount() {
+    confirmDelete = false;
+    renderAccount();
+    if (!acctDlg.open) acctDlg.showModal();
+    const first = user && acctView !== "newpass" ? $("#acct-hello") : $("#acct-form input");
+    if (first) first.focus();
+  }
+
+  function friendlyAuthError(err) {
+    const m = String((err && err.message) || err);
+    if (/invalid login credentials/i.test(m)) return "That email and password don't match. Try again, or reset your password.";
+    if (/email not confirmed/i.test(m)) return "Confirm your email first: open the link we sent you, then sign in.";
+    if (/already (been )?registered|already exists/i.test(m)) return "There's already an account with that email. Sign in, or reset your password.";
+    if (/rate limit|too many/i.test(m)) return "Too many tries. Wait a minute, then try again.";
+    if (/password/i.test(m) && /(weak|short|least|characters)/i.test(m)) return "Choose a longer password: 8 or more characters.";
+    return `That didn't work: ${m.replace(/\.$/, "")}. Try again.`;
+  }
+  async function handleAuth(form) {
+    const v = form.dataset.view, f = new FormData(form);
+    const email = String(f.get("email") || "").trim(), password = String(f.get("password") || ""), name = String(f.get("name") || "").trim();
+    const say = (text, field) => { acctMsg = text; $("#acct-msg").textContent = text; if (field) form.querySelector(`[name="${field}"]`).focus(); };
+    if (v === "create" && !name) return say("Enter your first name.", "name");
+    if (v !== "newpass" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return say("Enter your email address, like name@example.com.", "email");
+    if (v === "signin" && !password) return say("Enter your password.", "password");
+    if ((v === "create" || v === "newpass") && password.length < 8) return say("Use 8 or more characters for your password.", "password");
+    if (!sb) return say(acctCfg ? "Accounts aren't available right now. Try again in a moment." : "This is a preview: accounts aren't switched on yet, so nothing was saved.");
+    const btn = form.querySelector('[type="submit"]');
+    acctBusy = true;
+    btn.disabled = true;
+    try {
+      if (v === "signin") {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        acctMsg = "";
+      } else if (v === "create") {
+        const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: ROOT } });
+        if (error) throw error;
+        if (!data.session) {
+          acctView = "signin";
+          acctMsg = `Nearly there: we've emailed a link to ${email}. Open it to confirm your address, then sign in.`;
+          renderAccount();
+          $("#acct-email").value = email;
+        }
+      } else if (v === "reset") {
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: ROOT });
+        if (error) throw error;
+        say("If there's an account for that email, we've sent it a link to choose a new password.");
+      } else if (v === "newpass") {
+        const { error } = await sb.auth.updateUser({ password });
+        if (error) throw error;
+        acctView = "signin";
+        acctMsg = "Your new password is saved.";
+        renderAccount();
+        if (user) $("#acct-hello").focus();
+      }
+    } catch (err) {
+      if ($("#acct-msg")) say(friendlyAuthError(err));
+    } finally {
+      // The form may have been redrawn meanwhile, so free whichever submit button is showing now.
+      acctBusy = false;
+      document.querySelectorAll('#acct-body [type="submit"]').forEach(b => { b.disabled = false; });
+    }
+  }
+
+  $("#acct-body").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (e.target.id === "acct-form") return handleAuth(e.target);
+    if (e.target.id === "acct-pass") {
+      const input = $("#acct-newpass"), msg = $("#acct-pass-msg");
+      if (input.value.length < 8) { msg.textContent = "Use 8 or more characters for your password."; input.focus(); return; }
+      const { error } = await sb.auth.updateUser({ password: input.value });
+      msg.textContent = error ? friendlyAuthError(error) : "Your new password is saved.";
+      if (!error) input.value = "";
+    }
+  });
+  $("#acct-body").addEventListener("click", async e => {
+    const viewBtn = e.target.closest("button[data-view]");
+    if (viewBtn) {
+      acctView = viewBtn.dataset.view;
+      acctMsg = "";
+      renderAccount();
+      const first = $("#acct-form input");
+      if (first) first.focus();
+      return;
+    }
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const act = b.dataset.act;
+    if (act === "bag") { acctDlg.close(); openBag(); }
+    if (act === "saved") { acctDlg.close(); renderSaved(); savedDlg.showModal(); }
+    if (act === "signout") {
+      if (readSync().dirty) await pushState();
+      acctView = "signin";
+      acctMsg = "You're signed out. Your bag and saved pieces are kept in your account.";
+      await sb.auth.signOut();
+    }
+    if (act === "delete" || act === "delete-no") {
+      confirmDelete = act === "delete";
+      renderAccount();
+      $(`#acct-body [data-act="${confirmDelete ? "delete-no" : "delete"}"]`).focus();
+    }
+    if (act === "delete-yes") {
+      const { error } = await sb.rpc("delete_my_account");
+      if (error) { acctMsg = `Your account couldn't be deleted: ${error.message}. Email us and we'll do it.`; renderAccount(); return; }
+      confirmDelete = false;
+      acctView = "signin";
+      acctMsg = "Your account has been deleted.";
+      await sb.auth.signOut({ scope: "local" });
+    }
+  });
+  $("#account-open").addEventListener("click", openAccount);
+  $("#account-close").addEventListener("click", () => acctDlg.close());
+  acctDlg.addEventListener("close", () => { acctMsg = ""; confirmDelete = false; });
 
   // ---- Search ----------------------------------------------------------------
   const searchDlg = $("#search"), searchIn = $("#search-in"), searchList = $("#search-list");
@@ -1351,7 +1677,7 @@
     if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector("dialog[open]")) { e.preventDefault(); openSearch(); }
   });
 
-  [pd, bagDlg, kit, savedDlg, searchDlg].forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+  [pd, bagDlg, kit, savedDlg, searchDlg, acctDlg].forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
 
   // ---- Product links: the sheet's address is p/<id>/, so it can be shared and Back closes it ----
   const productUrl = (id, colour) => `${ROOT}p/${id}/${colour && colour !== byId[id].colours[0] ? `?colour=${colour}` : ""}`;
@@ -1542,6 +1868,8 @@
   renderRecent();
   renderBag();
   syncSavedButtons();
+  syncAccountButton();
+  initAccounts();
   updateFit();
   if (!still) $("#hero-title").classList.add("play");
   requestAnimationFrame(frame);
@@ -1550,6 +1878,9 @@
   if (new URLSearchParams(location.search).has("ordered") && !root.dataset.product) {
     bag = [];
     saveBag();
+    // If this device belongs to a signed-in shopper, the empty bag replaces the account's copy too.
+    const info = readSync();
+    if (info.user) writeSync({ user: info.user, dirty: true });
     renderBag();
     showToast("Thanks for your order. We've emptied your bag.", { bagLink: false });
     if (ROUTING) { try { history.replaceState(null, "", ROOT); } catch { /* the address keeps ?ordered=1 */ } }

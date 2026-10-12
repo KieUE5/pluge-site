@@ -1,14 +1,14 @@
 {
   "name": "pluge-image-tools",
   "private": true,
-  "description": "Builds the site's photos, product pages, share images and Shopify import file.",
+  "description": "Builds the site's photos, print files for Printful, product pages and share images.",
   "scripts": {
     "build-images": "node build-images.cjs",
     "build-lookbook": "node build-lookbook.cjs",
     "build-meta": "node build-meta.cjs",
     "build-pages": "node build-pages.cjs",
     "check-pages": "node build-pages.cjs --check",
-    "build-shopify-csv": "node build-shopify-csv.cjs"
+    "build-print-files": "node build-print-files.cjs"
   },
   "devDependencies": {
     "@fontsource-variable/archivo": "5.2.5",

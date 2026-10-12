@@ -2,52 +2,144 @@
 
 The website for PLUGE, a placeholder streetwear label. It's a static site (plain HTML, CSS and JavaScript) served by GitHub Pages from the `docs/` folder. Live at **https://kieue5.github.io/pluge-site/**.
 
-> **Preview status:** the shop isn't taking orders yet. Checkout and the drop-alert sign-up show a "preview" message, and search engines are told not to index the site. Checkout is ready to connect to Shopify: see [Take real orders with Shopify](#take-real-orders-with-shopify).
+PLUGE is a **print-on-demand** shop. Nothing is made until someone buys it:
+
+1. The shopper pays on Shopify's checkout.
+2. [Printful](https://www.printful.com) prints or embroiders the piece and posts it to them.
+3. You never hold stock.
+
+Customers can create an **account** (stored in a [Supabase](https://supabase.com) database) that keeps their bag and saved pieces on every device and lists their orders.
+
+> **Preview status:** the shop isn't taking orders yet. Checkout, accounts and the drop-alert sign-up show a "preview" message, and search engines are told not to index the site. To go live, follow [Go live](#go-live) below.
 
 ## What the site does
 
 - **Shop:** a channel-surfing TV hero, the Drop 01 grid with category and size filters, and a "build the fit" flat lay that assembles as you scroll.
-- **Product sheet:** drag to turn the garment, hover or double-tap to zoom, colour and size pickers, a size guide with cm/in and a size finder, delivery estimates, and an **on-model photo** with the model's height and size.
+- **Product sheet:** drag to turn the garment, hover or double-tap to zoom, colour and size pickers, a size guide with cm/in and a size finder, made-to-order delivery estimates, and an **on-model photo** with the model's height and size.
 - **Product pages:** every product has its own address, like [`/p/test-card-hoodie/`](https://kieue5.github.io/pluge-site/p/test-card-hoodie/), with its own title, share image and Google product data. Opening a product changes the address, and Back closes it.
-- **Lookbook:** six photos (four on location, two studio fit checks). "Shop" on any look adds every piece to the bag in one go once you've picked sizes. "Shop the fit" does the same for the flat lay.
-- **Saved:** the heart on any piece keeps it in the Saved drawer (stored on that device only).
-- **Recently viewed:** a row under the grid.
-- **Search:** the magnifier, or press <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on a Mac). It understands colours ("olive"), sizes ("XL") and everyday words ("trousers", "jumper", "hat").
+- **Lookbook:** six photos (four on location, two studio fit checks). "Shop" on any look adds its pieces to the bag in one go once you've picked sizes. "Shop the fit" does the same for the flat lay.
+- **Accounts:** sign up, sign in, reset a forgotten password. The account shows:
+  - your orders, with a tracking link;
+  - your bag and saved pieces, on any device;
+  - your email, filled in at checkout.
+
+  Shoppers can also change their password, sign out, or delete the account themselves.
+- **Saved and recently viewed:** the heart on any piece keeps it in the Saved drawer, and a recently viewed row sits under the grid. Without an account they stay on that device.
+- **Search:** the magnifier, or press <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on a Mac). It understands colours ("grey"), sizes ("XL") and everyday words ("trousers", "jumper", "hat").
+- **Policies:** terms of sale, returns (with the official cancellation form) and privacy and cookies, at `/terms/`, `/returns/` and `/privacy/`.
 - **Motion:** "Pause motion" in the header stops every animation, and the site starts paused for visitors whose device asks for reduced motion.
 
-## Go live on GitHub Pages (one time)
+## The range
 
-1. In this repository on GitHub, open **Settings → Pages**.
-2. Under **Build and deployment**, set **Source** to **Deploy from a branch**.
-3. Choose branch **main** and folder **/docs**, then click **Save**.
-4. After about a minute the site is live at `https://<your-username>.github.io/pluge-site/`.
+Each product is a standard Printful garment. `printful` in `catalog.js` names the one to pick.
 
-Every push to `main` republishes the site automatically.
+| Product | Printful garment | Colours | Sizes | Price |
+|---|---|---|---|---|
+| Test Card Hoodie | Unisex Heavy Blend Hoodie (Gildan 18500) | Black, Sport Grey | S–3XL | £55 |
+| Channel 00 Crewneck | Unisex Crew Neck Sweatshirt (Gildan 18000) | Sport Grey, Military Green | S–3XL | £50 |
+| Off Air Tee | Garment-Dyed Heavyweight T-Shirt (Comfort Colors 1717) | White, Black | S–3XL | £30 |
+| Colour Bars Tee | Garment-Dyed Heavyweight T-Shirt (Comfort Colors 1717) | White, Black | S–3XL | £32 |
+| Static Joggers | Unisex Fleece Sweatpants (Cotton Heritage M7580), embroidered | Black | S–2XL | £48 |
+| Broadcast Cap | Classic Dad Hat (Yupoong 6245CM), embroidered | Black, Khaki | One size | £26 |
+| Interference Beanie | Cuffed Beanie (Yupoong 1501KC), embroidered | Black, Navy | One size | £22 |
+| Signal Socks | Socks (all-over print) | Black | S, M, L | £14 |
 
-### Use your own domain (optional)
+The prices are suggestions that leave room for Printful's costs; change them in `catalog.js`. Before launch, check the following on Printful and update `catalog.js` where they differ:
+- each garment's colours, sizes and size chart;
+- the fabric details;
+- the joggers' and socks' specs, which I couldn't confirm from Printful's own pages.
 
-1. Buy a domain from any registrar.
-2. In **Settings → Pages → Custom domain**, enter it and save. GitHub adds a `docs/CNAME` file.
-3. At your registrar, point the domain at GitHub Pages ([GitHub's guide](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site)).
-4. Tick **Enforce HTTPS** once it's available.
-5. Change `SITE_URL` in `docs/assets/js/catalog.js` to the new address (ending in `/`) and push. The pages rebuild themselves (see below).
+## Go live
+
+You'll set up three free or low-cost accounts in this order: Shopify, then Printful, then Supabase. Each step ends with something to paste into `docs/assets/js/catalog.js`, or to send to whoever maintains the site.
+
+### 1. Shopify (checkout and payments)
+
+**Free to start:** sign up for a free [Shopify Partner account](https://www.shopify.com/partners) and create a *development store*. It costs nothing and takes test orders, so you can set everything up and test the whole checkout before paying. When you're ready to sell, transfer the store to yourself and pick a plan (Basic or above). Check [Shopify's UK pricing page](https://www.shopify.com/uk/pricing) for current prices and trials.
+
+1. In **Settings**:
+   - **Store details:** currency GBP.
+   - **Taxes and duties:** prices include VAT.
+   - **Shipping and delivery:** one UK rate, *UK delivery* at £4.95, plus a free version for orders of £75 or more. Keep this in step with `SHIP` in `catalog.js`.
+   - **Payments:** Shopify Payments (this also gives Apple Pay and Google Pay) and PayPal.
+   - **Policies:** paste in the text of this site's `/returns/`, `/privacy/` and `/terms/` pages.
+2. Install Shopify's **Headless** sales channel, create a storefront, and copy its **public access token**.
+3. Fill in `CHECKOUT` in `catalog.js` (the public token is meant to be visible, so it's fine to commit):
+   ```js
+   const CHECKOUT = { shopDomain: "your-store.myshopify.com", storefrontToken: "the public access token", apiVersion: "2026-07", syncStock: true };
+   ```
+   Shopify releases a new API version every three months and supports each for about a year, so update `apiVersion` once a year.
+
+### 2. Printful (making and posting orders)
+
+1. Sign up free at [printful.com](https://www.printful.com) and connect it to your Shopify store (Printful's app in the Shopify App Store).
+2. Build the print files: `cd tools && npm install && npm run build-print-files`. The files are already in `tools/print-files/`, and its `README.md` says which file goes where.
+3. For each product in the table above, create it in Printful:
+   1. Pick the named garment, then the colours and sizes listed.
+   2. Upload the print files at the widths given.
+   3. Set the retail price.
+   4. **Name it exactly as the site does** (for example "Test Card Hoodie").
+   5. Push it to Shopify.
+4. In Shopify, add the products to the **Headless** sales channel. In **Products**, select them all and use the bulk action that adds products to a sales channel.
+5. **Order samples** of everything. Check the print, the fit and the size charts, then photograph them to replace the AI photos.
+
+The site matches each Shopify product by name (or URL handle), then by colour and size, so keep Printful's colour and size names the same as `catalog.js`. If something doesn't match, the browser console says which product. Once connected, the site uses Shopify's prices and availability, so what's shown is what's charged.
+
+### 3. Supabase (customer accounts)
+
+1. Create a free project at [supabase.com](https://supabase.com), in the London region.
+2. **SQL Editor → New query:** paste in `tools/supabase/schema.sql` and click **Run**. This creates:
+   - the tables for saved bags and orders;
+   - the rules that keep each customer's data private;
+   - the delete-my-account function.
+3. **Authentication → URL Configuration:** set **Site URL** to `https://kieue5.github.io/pluge-site/` (or your own domain) and add the same address under **Redirect URLs**.
+4. **Authentication → Sign In / Providers → Email:** leave **Confirm email** switched on. It stops anyone seeing orders for an email address they don't own.
+5. **Authentication → Emails:** Supabase's built-in email is only for testing (it sends a handful of messages an hour). Before launch, connect a proper email service under **SMTP Settings**, and put your brand on the email templates.
+6. **Project Settings → API:** copy the **Project URL** and the **anon public** key into `ACCOUNTS` in `catalog.js`. The anon key is meant to be public; the database rules protect the data.
+7. **Orders in accounts:**
+   1. In Supabase, go to **Edge Functions → Deploy a new function → Via editor**. Name it `shopify-orders`, paste in `tools/supabase/functions/shopify-orders/index.ts`, and deploy.
+   2. In that function's settings, turn off **Verify JWT** (Shopify proves itself with its own signature instead).
+   3. In Shopify, go to **Settings → Notifications → Webhooks** and create two JSON webhooks, **Order creation** and **Order update**. Point both at `https://<your-project>.supabase.co/functions/v1/shopify-orders`.
+   4. Copy the signing secret Shopify shows there into a Supabase secret called `SHOPIFY_WEBHOOK_SECRET` (**Edge Functions → Secrets**).
+
+Supabase's free plan suits a new shop. Free projects can be paused after a week without any activity, so check the project's dashboard if you go quiet for a while.
+
+### 4. Test, then launch
+
+1. Turn on test mode in Shopify (**Settings → Payments**). Then, on the live site:
+   - create an account;
+   - place a test order with one of [Shopify's test cards](https://help.shopify.com/en/manual/checkout-settings/test-orders);
+   - check the order reaches Printful and appears under **Your orders**.
+2. Work through [Before taking real orders](#before-taking-real-orders).
+
+> The checkout and accounts code was tested thoroughly against simulated Shopify and Supabase services, not real ones, because those can't be reached from where the site was built. Do the test order before announcing anything.
+
+## Returns with print-on-demand
+
+- Customers can change their mind within 14 days of delivery (UK law; your designs aren't personalised items, so the exemption doesn't apply). They pay return postage unless the piece is faulty.
+- Returns come to **your** address (`returnsAddress` in `COMPANY`), not Printful's. Printful won't refund change-of-mind returns, so that refund comes out of your margin.
+- Printful will usually reprint misprinted or damaged items at no cost if you report them quickly with photos. Check Printful's current returns policy for the time limit.
+- Visiting `https://<your-site>/?ordered=1` empties the bag and thanks the shopper. Point any "back to the shop" link on Shopify's order status page at that address.
 
 ## What's where
 
 | Path | What it is |
 |---|---|
 | `docs/index.html` | The page |
-| `docs/assets/js/catalog.js` | **Products, prices, sizes, stock, colours, delivery prices, the lookbook, the drop date and the checkout settings.** Edit this to change the shop. |
-| `docs/assets/js/site.js` | Page behaviour |
+| `docs/assets/js/catalog.js` | **Products, prices, colours, sizes, delivery, the lookbook, your business details, and the Shopify and Supabase settings.** Edit this to change the shop. |
+| `docs/assets/js/site.js` | Page behaviour, including checkout and accounts |
+| `docs/assets/js/vendor/` | Supabase's JavaScript library (MIT licence), loaded only when accounts are switched on |
 | `docs/assets/css/site.css` | Styles |
 | `docs/p/<product>/index.html` | Product pages. Made by `tools/build-pages.cjs`, so don't edit them by hand. |
-| `docs/terms/`, `docs/returns/`, `docs/privacy/` | Terms of sale, returns (with the cancellation form) and privacy and cookies. Made by `tools/build-pages.cjs` from `tools/policies.cjs`. |
+| `docs/terms/`, `docs/returns/`, `docs/privacy/` | Policy pages, made by `tools/build-pages.cjs` from `tools/policies.cjs` |
 | `docs/sitemap.xml`, `docs/robots.txt` | Made by `tools/build-pages.cjs` |
 | `docs/assets/img/products/` | Product photos for each product, colour and view, at 1000×1200 and 500×600 |
 | `docs/assets/img/lookbook/` | Lookbook photos at full and half width |
 | `docs/assets/img/og/` | Share images for each product (what appears when a link is posted) |
 | `docs/assets/fonts/` | Self-hosted Archivo and IBM Plex Mono (SIL Open Font License, licences included) |
-| `tools/` | Scripts that build the photos, product pages, share images and the Shopify import file |
+| `tools/print-files/` | Print-ready artwork for Printful, with a guide to where each file goes |
+| `tools/supabase/` | The accounts database setup (`schema.sql`) and the Shopify orders function |
+| `tools/` | Scripts that build the photos, print files, product pages and share images |
 | `.github/workflows/rebuild-pages.yml` | Rebuilds the product and policy pages automatically after you push |
 
 ### Common edits
@@ -56,68 +148,33 @@ Edit `docs/index.html` or `catalog.js` (on your computer, or with the pencil ico
 
 To rebuild on your own computer instead, run `node tools/build-pages.cjs` (it needs Node, nothing else). `node tools/build-pages.cjs --check` tells you whether anything is out of date.
 
-- **Add your business details:** fill in `COMPANY` at the top of `catalog.js` (company name and number, registered office, returns address, VAT number, email). They appear in the footer and on the terms, returns and privacy pages; until then those pages show [square brackets].
+- **Add your business details:** fill in `COMPANY` at the top of `catalog.js`: company name and number, registered office, returns address, VAT number and email. They appear in the footer and on the terms, returns and privacy pages.
+- **Change a price or add a colour:** edit the product in `catalog.js`, and make the same change in Printful. A new colour also needs photos (see below).
+- **Rename the brand:** change `BRAND` in `catalog.js`, then replace "PLUGE" in:
+  - `docs/index.html` and `docs/404.html`;
+  - `tools/recipes.cjs`, `tools/meta.html` and `tools/build-print-files.cjs`.
 
-- **Change a price, mark a size sold out or add a colour:** edit the product in `catalog.js`. A new colour also needs photos (see below). Once Shopify is connected, prices and stock come from Shopify instead.
-- **Rename the brand:** change `BRAND` in `catalog.js`, replace "PLUGE" in `docs/index.html`, `docs/404.html`, `tools/recipes.cjs` and `tools/meta.html`, then rebuild the photos, share images and pages.
+  Then rebuild the photos, print files, share images and pages.
 - **Change the Drop 02 date:** `DROP_02` in `catalog.js`.
 - **Change the lookbook:** `LOOKS` in `catalog.js` lists each photo, its title, the pieces in it and, for fit checks, the model's height and sizes.
 
-## Take real orders with Shopify
+## Photos and print files
 
-The bag is already wired to Shopify's Storefront API. Once it's connected, the site reads live stock and prices from Shopify, and **Checkout** sends the shopper to Shopify's own checkout to pay. Shopify then handles payment, delivery choice, VAT, order emails and refunds.
-
-**Want to try it free first?** Sign up for a free [Shopify Partner account](https://www.shopify.com/partners) and create a *development store*. Development stores cost nothing and take test orders, so you can follow the steps below and test the whole checkout before paying. When you're ready to sell, transfer the store to yourself and pick a plan. Shopify's normal sign-up also has a short free trial; check [Shopify's UK pricing page](https://www.shopify.com/uk/pricing) for the current offer.
-
-1. **Create a store** at [shopify.com](https://www.shopify.com) (Basic plan or higher), or a development store as above. In **Settings**:
-   - **Store details:** currency GBP.
-   - **Taxes and duties:** prices include VAT.
-   - **Shipping and delivery:** add *Royal Mail Tracked 48* at £4.95 with a free version for orders of £75 or more, and *Royal Mail Tracked 24* at £5.95. Keep these in step with `SHIP` in `catalog.js`, which the site uses for its estimates.
-   - **Payments:** turn on Shopify Payments (this also gives Apple Pay and Google Pay) and add PayPal.
-   - **Policies:** add a refund policy (30-day free returns, plus the legal 14-day right to cancel), privacy policy and terms.
-2. **Import the products.** Run `node tools/build-shopify-csv.cjs`, then in Shopify go to **Products → Import** and upload `tools/shopify-products.csv`. It has every colour and size with photos linked from this site.
-   - Stock is set to 20 per size (0 for sizes marked sold out), and the weights are estimates. Change both in Shopify.
-   - Don't rename the products' URL handles or their **Colour** and **Size** option values: that's how the site finds each variant.
-3. **Create a Storefront token.** Install Shopify's **Headless** sales channel, create a storefront, and copy its **public access token**. Then make all the products available on the Headless sales channel: in **Products**, select them all and use the bulk action that adds products to a sales channel.
-4. **Connect the site.** In `catalog.js`, fill in `CHECKOUT`:
-   ```js
-   const CHECKOUT = {
-     shopDomain: "your-store.myshopify.com",
-     storefrontToken: "the public access token",
-     apiVersion: "2026-07",
-     syncStock: true,
-   };
-   ```
-   The public token is designed to be visible in a website, so it's fine to commit. Shopify releases a new API version every three months and supports each for about a year; update `apiVersion` once a year.
-5. **Test it.** Turn on test mode in **Settings → Payments**, push, and place a test order on the live site with one of [Shopify's test cards](https://help.shopify.com/en/manual/checkout-settings/test-orders).
-6. **Go live.** Turn test mode off and work through the checklist below.
-
-> The checkout code was tested against a simulated Shopify store, not a real one. Do a test order (step 5) before announcing anything.
-
-**Good to know**
-
-- If a size sells out in Shopify, the site shows it as sold out on the next page load. If it sells out while someone has it in their bag, Checkout tells them which piece to remove.
-- Shopify doesn't tell this site when an order is paid, so the bag here isn't emptied automatically. Visiting `https://<your-site>/?ordered=1` empties it and thanks the shopper, so point any "back to the shop" link you add to Shopify's order status page at that address.
-
-## Photos
-
-All photos on the site are AI-generated placeholders, made with Figma AI.
-
-**Product photos.** The garments started as blank mid-grey photos. `tools/` recolours each one and applies the prints (screen print, puff print, embroidery, woven labels and knitted sock stripes), so every colourway comes from the same photo and matches exactly.
+All photos on the site are AI-generated placeholders, made with Figma AI. Replace them with photos of your samples before launch.
 
 ```bash
 cd tools
 npm install                # Playwright and the fonts used for the prints
-npm run build-images       # docs/assets/img/products/*.webp
+npm run build-images       # product photos: docs/assets/img/products/*.webp
+npm run build-print-files  # artwork for Printful: tools/print-files/*.png
 npm run build-lookbook     # docs/assets/img/lookbook/*.webp from tools/lookbook/
 npm run build-meta         # share images (site and per product) and the iPhone icon
-npm run build-pages        # product pages, sitemap and robots.txt
+npm run build-pages        # product and policy pages, sitemap and robots.txt
 ```
 
-- **Print positions and colours** live in `tools/recipes.cjs`. Positions are fractions of the garment's outline.
-- **The blank photos** are saved in `tools/blanks/`, and the lookbook originals in `tools/lookbook/`. (The Figma links they came from expire after seven days.)
-- **Swapping in real product photos:** shoot each blank garment in mid-grey on a white background, save it as `tools/blanks/<garment>-<view>.png`, and rebuild.
-- **Swapping in real lookbook photos:** replace the files in `tools/lookbook/` (same names, or update `LOOKS` in `catalog.js`), run `npm run build-lookbook`, and update the model heights and sizes in `LOOKS`.
+- **Print positions and colours** for the product photos live in `tools/recipes.cjs`. The print files are listed in `tools/build-print-files.cjs`.
+- **The blank photos** are in `tools/blanks/`, and the lookbook originals in `tools/lookbook/`.
+- **Other brands' logos:** TV makers' names and a trainer brand have been retouched out of the lookbook (`tools/retouch-lookbook.py`). The lookbook also shows cargo trousers we don't sell; the captions only list pieces in the shop.
 
 ## Speed and accessibility
 
@@ -125,20 +182,26 @@ Checked on 12 October 2026 against a local copy of the site:
 
 | | Performance | Accessibility | Best practices |
 |---|---|---|---|
-| Lighthouse, phone | 95 | 100 | 100 |
+| Lighthouse, phone | 94 | 100 | 100 |
 | Lighthouse, desktop | 100 | 100 | 100 |
 
-- Phone: first paint 1.5s, largest paint 2.9s, layout shift 0. The SEO score stays low until the `noindex` preview tag comes off.
-- [axe](https://github.com/dequelabs/axe-core) found no WCAG 2.2 AA problems in 32 scans: the page, product sheet, on-model view, bag, saved, shop-the-look and search, each in light and dark mode on desktop and phone.
+- On a phone, the main content appears in about 3 seconds, and nothing shifts while the page loads. The SEO score stays low until the `noindex` preview tag comes off.
+- [axe](https://github.com/dequelabs/axe-core) found no WCAG 2.2 AA problems in 36 scans. Each of these was checked in light and dark mode, on desktop and phone:
+  - the page
+  - product sheet and on-model view
+  - bag, saved and shop-the-look
+  - search
+  - account panel
 - Everything works by keyboard. Dialogs trap focus and return it when they close.
 
 ## Before taking real orders
 
-- [ ] **Payments.** Connect Shopify ([steps above](#take-real-orders-with-shopify)) and place a test order. Use guest checkout as the default.
-- [ ] **Photos.** Replace the AI-generated product and lookbook photos with real ones, and update the model heights and sizes in `LOOKS` (`catalog.js`). Other companies' logos (TV makers' names, the trainer brand) have been retouched out of the current lookbook (`tools/retouch-lookbook.py`).
+- [ ] **Shopify, Printful and Supabase** set up as in [Go live](#go-live), and a test order placed end to end.
+- [ ] **Samples.** Order a sample of every piece, check the print, fit and size charts against `catalog.js`, and replace the AI photos with photos of the real pieces.
+- [ ] **Account emails.** Connect a proper email service to Supabase (step 3.5) so sign-up and password emails always arrive.
 - [ ] **Company details.** Fill in `COMPANY` in `catalog.js`. Until then the footer and policy pages show [square brackets].
-- [x] **Policy pages.** Terms of sale, returns with the model cancellation form, and privacy and cookies are at `/terms/`, `/returns/` and `/privacy/`. Have a solicitor read them before you sell, and add your email provider by name to the privacy page once drop alerts are connected.
+- [x] **Policy pages.** Terms, returns (14 days, customer pays return postage) and privacy are written for print-on-demand and accounts. Have a solicitor read them, and add your email provider by name to the privacy page once drop alerts are connected.
 - [ ] **Drop alerts.** Connect an email tool that records consent and puts an unsubscribe link in every email, then replace the preview message in `site.js`.
-- [ ] **Stock.** Keep "Low stock", "Sold out" and the countdown true to reality (DMCC Act 2024 / CMA guidance).
-- [ ] **Search engines.** Remove `<meta name="robots" content="noindex">` from `docs/index.html` and take the preview line out of the ticker and the note under the lookbook. The pages rebuild when you push.
-- [ ] **Brand name.** Web searches on 12 October 2026 found no clothing brand called PLUGE. The nearest names were a US trade mark "THE PLUG" for clothing and the New York label Plugged NYC. That isn't a register search: before launch, search "PLUGE" in class 25 on the [UK IPO register](https://trademarks.ipo.gov.uk/ipo-tmtext) (free, a couple of minutes), and consider filing your own application.
+- [ ] **Honest selling.** With print-on-demand nothing sells out, so don't show "low stock" or "selling fast". A countdown must match a real deadline (DMCC Act 2024 / CMA guidance).
+- [ ] **Search engines.** Remove `<meta name="robots" content="noindex">` from `docs/index.html`, and take the preview line out of the ticker and the note under the lookbook. The pages rebuild when you push.
+- [ ] **Brand name.** Web searches on 12 October 2026 found no clothing brand called PLUGE. The nearest were a US trade mark "THE PLUG" for clothing and the New York label Plugged NYC. That isn't a register search: before launch, search "PLUGE" in class 25 on the [UK IPO register](https://trademarks.ipo.gov.uk/ipo-tmtext) (free, a couple of minutes), and consider filing your own application.
