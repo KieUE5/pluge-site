@@ -1,0 +1,13 @@
+{
+  "name": "pluge-image-tools",
+  "private": true,
+  "description": "Turns the blank product photos into every colourway with prints applied.",
+  "scripts": {
+    "build-images": "node build-images.cjs"
+  },
+  "devDependencies": {
+    "@fontsource-variable/archivo": "5.2.5",
+    "@fontsource/ibm-plex-mono": "5.2.5",
+    "playwright": "1.56.1"
+  }
+}
