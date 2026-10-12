@@ -1,0 +1,4 @@
+# Only read by search engines when the site is on its own domain.
+User-agent: *
+Allow: /
+Sitemap: https://kieue5.github.io/pluge-site/sitemap.xml

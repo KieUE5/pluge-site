@@ -4,6 +4,20 @@
 window.PLUGE = (() => {
   const BRAND = "PLUGE"; // Placeholder brand name. Also change it in index.html (title, logo, footer).
 
+  // Where the site lives, with a trailing slash. Used for share links, product page links and the sitemap.
+  // After changing it (for example to your own domain), run: node tools/build-pages.cjs
+  const SITE_URL = "https://kieue5.github.io/pluge-site/";
+
+  // Checkout. While shopDomain is empty the bag shows a "preview, not taking orders" message.
+  // To take real payments, set up a Shopify store (see README, "Take real orders with Shopify"),
+  // then fill these in. The Storefront token is a public token, so it is safe to publish here.
+  const CHECKOUT = {
+    shopDomain: "",       // e.g. "pluge-shop.myshopify.com"
+    storefrontToken: "",  // Headless channel > Storefront API > Public access token
+    apiVersion: "2026-07",
+    syncStock: true,      // use Shopify's stock and prices instead of the ones in this file
+  };
+
   const DROP_02 = "2026-10-30T18:00:00Z"; // Fri 30 Oct 2026, 18:00 GMT
 
   // Delivery: dispatch in 1–2 working days, then the carrier's transit time (working days).
@@ -62,57 +76,59 @@ window.PLUGE = (() => {
   };
 
   // soldOut lists the sizes that have sold out in each colour. "views" are the photos that exist.
+  // "short" is the one-word name used in lookbook captions. "tags" are extra words the search box
+  // matches, like "trousers" for the cargos.
   const PRODUCTS = [
-    { id: "test-card-hoodie", name: "Test Card Hoodie", cat: "fleece", price: 85, views: ["front", "back"],
+    { id: "test-card-hoodie", short: "Hoodie", tags: "hoody sweatshirt pullover fleece hood", name: "Test Card Hoodie", cat: "fleece", price: 85, views: ["front", "back"],
       colours: ["black", "ash"], sizes: TOPS, soldOut: { ash: ["XS", "XXL"] }, badge: "New", guide: "fleece", care: "cotton",
       blurb: "Heavyweight pullover with a box logo on the chest and full colour bars across the back.",
       fabric: "450gsm brushed-back fleece. Black: 100% cotton. Ash: 90% cotton, 10% polyester.",
       details: ["Boxy fit with a dropped shoulder", "Double-layer hood with flat drawcords", "Rib cuffs and hem", "Preshrunk"],
       deco: "Screen-printed chest logo. Seven-colour screen print on the back.",
       pairs: ["static-cargo", "broadcast-cap", "signal-socks"] },
-    { id: "channel-00-crew", name: "Channel 00 Crewneck", cat: "fleece", price: 75, views: ["front", "back"],
+    { id: "channel-00-crew", short: "Crew", tags: "sweatshirt jumper sweater crewneck fleece ch00", name: "Channel 00 Crewneck", cat: "fleece", price: 75, views: ["front", "back"],
       colours: ["ash", "olive"], sizes: TOPS, soldOut: { olive: ["XS"] }, badge: null, guide: "fleece", care: "cotton",
       blurb: "Brushed fleece crew with an oversized CH 00 across the chest and a strip of colour bars underneath.",
       fabric: "450gsm brushed-back fleece. Olive: 100% cotton. Ash: 90% cotton, 10% polyester.",
       details: ["Boxy fit with a dropped shoulder", "Thick rib collar, cuffs and hem", "Preshrunk"],
       deco: "Puff-printed CH 00 with a screen-printed colour-bar strip. Small logo on the back neck.",
       pairs: ["static-cargo", "interference-beanie", "colour-bars-tee"] },
-    { id: "off-air-tee", name: "Off Air Tee", cat: "tees", price: 40, views: ["front", "back"],
+    { id: "off-air-tee", short: "Tee", tags: "t-shirt tshirt top logo", name: "Off Air Tee", cat: "tees", price: 40, views: ["front", "back"],
       colours: ["white", "black", "blue"], sizes: TOPS, soldOut: { black: ["XS"], blue: ["XXL"] }, badge: null, guide: "tee", care: "cotton",
       blurb: "Boxy heavyweight tee with a small wordmark on the chest and a big logo box across the back.",
       fabric: "280gsm heavyweight jersey, 100% cotton.",
       details: ["Boxy and slightly cropped, with a dropped shoulder", "Thick rib collar", "Preshrunk"],
       deco: "One-colour screen print on the chest and back.",
       pairs: ["static-cargo", "broadcast-cap", "test-card-hoodie"] },
-    { id: "colour-bars-tee", name: "Colour Bars Tee", cat: "tees", price: 42, views: ["front", "back"],
+    { id: "colour-bars-tee", short: "Tee", tags: "t-shirt tshirt top color colours test card", name: "Colour Bars Tee", cat: "tees", price: 42, views: ["front", "back"],
       colours: ["white", "black"], sizes: TOPS, soldOut: { white: ["S", "M"] }, badge: "Low stock", guide: "tee", care: "cotton",
       blurb: "The full test card printed edge to edge across the chest in seven colours.",
       fabric: "280gsm heavyweight jersey, 100% cotton.",
       details: ["Boxy and slightly cropped, with a dropped shoulder", "Thick rib collar", "Preshrunk"],
       deco: "Seven-colour screen print on the chest. Small logo on the back neck.",
       pairs: ["static-cargo", "channel-00-crew", "broadcast-cap"] },
-    { id: "static-cargo", name: "Static Cargo Pant", cat: "bottoms", price: 95, views: ["front", "back"],
+    { id: "static-cargo", short: "Cargos", tags: "trousers pants combat cargos bottoms", name: "Static Cargo Pant", cat: "bottoms", price: 95, views: ["front", "back"],
       colours: ["black", "olive"], sizes: WAIST, soldOut: { olive: ["28"] }, badge: "New", guide: "pant", care: "cotton",
       blurb: "Relaxed cotton ripstop cargos with bellows pockets and a woven colour-bar tab.",
       fabric: "100% cotton ripstop.",
       details: ["Relaxed straight leg, 81cm (32in) inseam", "Six pockets, including two bellows cargo pockets", "Drawcord ankles"],
       deco: "Woven colour-bar tab on the left cargo pocket.",
       pairs: ["test-card-hoodie", "off-air-tee", "signal-socks"] },
-    { id: "broadcast-cap", name: "Broadcast Cap", cat: "acc", price: 32, views: ["front"],
+    { id: "broadcast-cap", short: "Cap", tags: "hat baseball cap", name: "Broadcast Cap", cat: "acc", price: 32, views: ["front"],
       colours: ["black", "ash"], sizes: ONE, soldOut: {}, badge: null, guide: null, care: "cap",
       blurb: "Unstructured six-panel cap with the logo box embroidered on the front.",
       fabric: "100% cotton twill.",
       details: ["Unstructured six-panel crown", "Adjustable self-fabric strap with an antique brass buckle", "One size, adjusts to fit 54–60cm"],
       deco: "Embroidered front logo.",
       pairs: ["test-card-hoodie", "off-air-tee", "static-cargo"] },
-    { id: "interference-beanie", name: "Interference Beanie", cat: "acc", price: 28, views: ["front"],
+    { id: "interference-beanie", short: "Beanie", tags: "hat knit beanie", name: "Interference Beanie", cat: "acc", price: 28, views: ["front"],
       colours: ["black", "blue"], sizes: ONE, soldOut: { blue: ["One size"] }, badge: null, guide: null, care: "knit",
       blurb: "Rib-knit beanie with a deep fold-over cuff and a woven colour-bar label.",
       fabric: "100% acrylic rib knit.",
       details: ["Deep fold-over cuff", "One size"],
       deco: "Woven colour-bar label on the cuff.",
       pairs: ["channel-00-crew", "static-cargo", "signal-socks"] },
-    { id: "signal-socks", name: "Signal Sock 3-Pack", cat: "acc", price: 18, views: ["front"],
+    { id: "signal-socks", short: "Socks", tags: "sock socks pack", name: "Signal Sock 3-Pack", cat: "acc", price: 18, views: ["front"],
       colours: ["mixed", "black"], sizes: SOCK, soldOut: {}, badge: null, guide: "sock", care: "sock",
       blurb: "Three pairs of cushioned crew socks with a colour-bar stripe under the cuff.",
       fabric: "80% cotton, 17% polyamide, 3% elastane.",
@@ -147,5 +163,34 @@ window.PLUGE = (() => {
     ["10", "Ghosting Long Sleeve", 48],
   ];
 
-  return { BRAND, DROP_02, SHIP, BANK_HOLIDAYS, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES };
+  // Lookbook. Photos live in assets/img/lookbook as <img>-<width>.webp at full and half width
+  // (tools/build-lookbook.cjs makes them). "pieces" are [product id, colour]. "pos" is the part of a
+  // wide photo to keep when it's cropped to portrait. "model" is the model's height and the size they
+  // wear in each piece; product pages show it next to the on-model photo.
+  // These are AI-generated preview images. Reshoot with real models before launch and use their real
+  // heights and sizes.
+  const LOOKS = [
+    { n: "01", img: "look-01", w: 1536, h: 1024, pos: "51% 50%", title: "Test card wall",
+      alt: "Seen from behind, a model in the black Test Card Hoodie faces a wall of old TVs showing colour bars, the same bars printed across the hoodie's back. Olive Static Cargo Pants.",
+      pieces: [["test-card-hoodie", "black"], ["static-cargo", "olive"]] },
+    { n: "02", img: "look-04", w: 960, h: 1280, title: "Off air",
+      alt: "Close-up of a model lit by a TV full of static, wearing the black Interference Beanie with its woven colour-bar label.",
+      pieces: [["interference-beanie", "black"]] },
+    { n: "03", img: "look-02", w: 960, h: 1280, title: "Control room",
+      alt: "A model stands in a TV control room in the white Colour Bars Tee, black Static Cargo Pants and the black Broadcast Cap.",
+      pieces: [["colour-bars-tee", "white"], ["static-cargo", "black"], ["broadcast-cap", "black"]] },
+    { n: "04", img: "look-03", w: 960, h: 1280, title: "After dark",
+      alt: "Two friends laughing on a rooftop at night above the London skyline. One wears the Channel 00 Crewneck in Ash, the other the Off Air Tee in Signal Blue, both with black Static Cargo Pants.",
+      pieces: [["channel-00-crew", "ash"], ["off-air-tee", "blue"], ["static-cargo", "black"]] },
+    { n: "05", img: "fit-01", w: 960, h: 1280, title: "Fit check: hoodie", fitCheck: true,
+      alt: "Studio fit photo of a 185cm model in the black Test Card Hoodie, size L, and olive Static Cargo Pants, size 32.",
+      model: { height: 185, wears: { "test-card-hoodie": "L", "static-cargo": "32" } },
+      pieces: [["test-card-hoodie", "black"], ["static-cargo", "olive"]] },
+    { n: "06", img: "fit-02", w: 960, h: 1280, title: "Fit check: tee", fitCheck: true,
+      alt: "Studio fit photo of a 170cm model in the black Off Air Tee, size S, and black Static Cargo Pants, size 28.",
+      model: { height: 170, wears: { "off-air-tee": "S", "static-cargo": "28" } },
+      pieces: [["off-air-tee", "black"], ["static-cargo", "black"]] },
+  ];
+
+  return { BRAND, SITE_URL, CHECKOUT, DROP_02, SHIP, BANK_HOLIDAYS, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS };
 })();

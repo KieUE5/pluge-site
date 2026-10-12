@@ -3,17 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- page-meta: tools/build-pages.cjs writes this block, here and on every product page -->
   <title>PLUGE · Drop 01: Test Pattern</title>
   <meta name="description" content="PLUGE makes heavyweight streetwear in small runs. Drop 01, Test Pattern: hoodies, tees, cargos and accessories printed with TV colour bars.">
-  <!-- Preview: keep search engines out until the shop takes real orders. Remove this line at launch. -->
-  <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#0C0C10">
+  <link rel="canonical" href="https://kieue5.github.io/pluge-site/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PLUGE">
   <meta property="og:title" content="PLUGE · Drop 01: Test Pattern">
   <meta property="og:description" content="Heavyweight streetwear printed with the colour bars a telly shows when the signal drops.">
-  <meta property="og:image" content="assets/img/og.jpg">
+  <meta property="og:url" content="https://kieue5.github.io/pluge-site/">
+  <meta property="og:image" content="https://kieue5.github.io/pluge-site/assets/img/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PLUGE: the Test Card Hoodie on a TV screen">
   <meta name="twitter:card" content="summary_large_image">
+  <!-- /page-meta -->
+  <!-- Preview: keep search engines out until the shop takes real orders. Remove this line at launch. -->
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0C0C10">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="preload" href="assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
@@ -59,13 +66,16 @@
     </a>
     <nav class="nav" aria-label="Main">
       <a href="#shop">Shop</a>
+      <a href="#lookbook">Lookbook</a>
       <a href="#fit">The fit</a>
       <a href="#drop-02">Drop 02</a>
       <a href="#about">About</a>
     </nav>
     <div class="head-tools">
       <button class="motion-btn" type="button" id="motion-toggle"><span class="motion-ico" aria-hidden="true"></span><span class="motion-txt">Pause motion</span></button>
-      <button class="bag-btn" type="button" id="bag-open" aria-haspopup="dialog">Bag <span class="count" id="bag-count">0</span></button>
+      <button class="icon-btn search-btn" type="button" id="search-open" aria-haspopup="dialog" aria-keyshortcuts="/ Control+K Meta+K" aria-label="Search"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span class="icon-txt">Search</span><kbd aria-hidden="true">/</kbd></button>
+      <button class="icon-btn saved-btn" type="button" id="saved-open" aria-haspopup="dialog" aria-label="Saved, 0 pieces"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg><span class="pip-count" id="saved-count" hidden>0</span></button>
+      <button class="bag-btn" type="button" id="bag-open" aria-haspopup="dialog"><svg class="ico bag-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="bag-txt">Bag</span> <span class="count" id="bag-count">0</span></button>
     </div>
   </div>
 </header>
@@ -80,8 +90,8 @@
         </div>
         <div class="pips" id="pips" role="group" aria-label="Channels"></div>
         <div class="tv-btns">
-          <button class="tv-btn" type="button" id="ch-prev" aria-label="Previous channel">CH −</button>
-          <button class="tv-btn" type="button" id="ch-next" aria-label="Next channel">CH +</button>
+          <button class="tv-btn" type="button" id="ch-prev">CH −<span class="vh"> (previous channel)</span></button>
+          <button class="tv-btn" type="button" id="ch-next">CH +<span class="vh"> (next channel)</span></button>
           <span class="led" aria-hidden="true"></span>
         </div>
       </div>
@@ -127,7 +137,7 @@
     </div>
   </section>
 
-  <section class="shop wrap" id="shop" aria-labelledby="shop-title">
+  <section class="shop wrap" id="shop" aria-label="Shop Drop 01">
     <div class="shop-head">
       <div>
         <p class="eyebrow">Drop 01</p>
@@ -166,6 +176,27 @@
       <p>Nothing in that size and category right now.</p>
       <button class="btn" type="button" id="clear-filters">Clear filters</button>
     </div>
+    <section class="recent" id="recent" aria-labelledby="recent-title" hidden>
+      <div class="recent-head">
+        <h3 class="eyebrow" id="recent-title">Recently viewed</h3>
+        <button class="link-btn" type="button" id="recent-clear">Clear</button>
+      </div>
+      <ul class="recent-row" id="recent-row"></ul>
+    </section>
+  </section>
+
+  <section class="lookbook" id="lookbook" aria-labelledby="look-title">
+    <div class="wrap">
+      <div class="look-head">
+        <div>
+          <p class="eyebrow">Lookbook · Drop 01</p>
+          <h2 class="wide glitch glitch-hover" id="look-title">On air</h2>
+        </div>
+        <p class="look-note">Drop 01 out in the world, plus two studio fit checks with the model's height and size. Pick a look to shop every piece in it.</p>
+      </div>
+      <div class="looks" id="looks"></div>
+      <p class="look-fine">Preview images made with AI. They'll be replaced by a real shoot before launch.</p>
+    </div>
   </section>
 
   <section class="fit" id="fit" aria-labelledby="fit-title">
@@ -176,7 +207,10 @@
           <h2 class="wide glitch glitch-hover" id="fit-title">Full broadcast</h2>
           <p class="fit-desc">Scroll and the pieces come together, from the hoodie down to the socks. Pick any piece to choose your size.</p>
           <ol class="fit-list" id="fit-list"></ol>
-          <p class="fit-total">Full fit <b id="fit-total">£0</b></p>
+          <div class="fit-buy">
+            <p class="fit-total">Full fit <b id="fit-total">£0</b></p>
+            <button class="btn primary" type="button" id="fit-shop" aria-haspopup="dialog">Shop the fit</button>
+          </div>
         </div>
         <div class="fit-stage grain" id="fit-stage">
           <span class="mat-label a">Flat lay · Drop 01</span>
@@ -251,7 +285,7 @@
         <h3>Shop</h3>
         <ul id="foot-cats"></ul>
       </div>
-      <div>
+      <div id="delivery">
         <h3>Delivery &amp; returns</h3>
         <ul>
           <li>Royal Mail Tracked 48: £4.95, free over £75</li>
@@ -285,6 +319,7 @@
           <div class="zoom-layer" id="pd-zoom-layer"><div class="turn" id="pd-turn"><div class="turn-face" id="pd-face"></div></div></div>
           <canvas class="pd-static" id="pd-static" width="200" height="240" aria-hidden="true"></canvas>
           <div class="lens" id="pd-lens" hidden><div class="lens-inner" id="pd-lens-inner"></div></div>
+          <p class="pd-model-cap" id="pd-model-cap" hidden></p>
           <p class="pd-hint" id="pd-hint"></p>
           <button class="zoom-btn" type="button" id="pd-zoom" aria-pressed="false">Zoom</button>
         </div>
@@ -311,7 +346,11 @@
       </div>
       <p class="stock-note" id="pd-stock" hidden></p>
       <p class="size-note" id="pd-size-note" role="status" hidden></p>
-      <button class="btn primary block" type="submit" id="pd-add" disabled>Select a size</button>
+      <p class="pd-fit-note" id="pd-fit-note" hidden><span id="pd-fit-text"></span> <button class="link-btn" type="button" id="pd-fit-view">See it on</button></p>
+      <div class="pd-actions">
+        <button class="btn primary block" type="submit" id="pd-add" disabled>Select a size</button>
+        <button class="btn save-big" type="button" id="pd-save" aria-pressed="false" aria-label="Save"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg></button>
+      </div>
       <p class="pd-returns">Free returns within 30 days · <button class="link-btn" type="button" id="pd-returns-link">Delivery and returns</button></p>
       <div>
         <details open id="pd-fabric-wrap">
@@ -381,10 +420,58 @@
         <dt>UK delivery</dt><dd id="t-ship"></dd>
         <dt class="total">Total</dt><dd class="total" id="t-total"></dd>
       </dl>
+      <p class="ship-fine" id="ship-fine" hidden>You'll confirm delivery and pay on the next page.</p>
       <button class="btn primary block" type="button" id="checkout">Checkout</button>
       <button class="btn block" type="button" id="bag-continue">Continue shopping</button>
-      <p class="checkout-note" id="checkout-note" role="status" hidden>This is a preview site and isn't taking orders yet. No payment provider is connected, so nothing was charged.</p>
+      <p class="checkout-note" id="checkout-note" role="status" hidden></p>
     </div>
+  </div>
+</dialog>
+
+<dialog class="drawer" id="kit" aria-labelledby="kit-title">
+  <form class="bag kit" id="kit-form" novalidate>
+    <div class="bag-head">
+      <h2 class="wide" id="kit-title">Shop the look</h2>
+      <button class="x" type="button" id="kit-close" aria-label="Close">×</button>
+    </div>
+    <div class="kit-intro" id="kit-intro"></div>
+    <ul class="bag-lines kit-lines" id="kit-lines"></ul>
+    <div class="bag-foot">
+      <dl class="totals">
+        <dt class="total">Total</dt><dd class="total" id="kit-total"></dd>
+      </dl>
+      <p class="kit-msg" id="kit-msg" role="status"></p>
+      <button class="btn primary block" type="submit" id="kit-add">Add to bag</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="drawer" id="saved" aria-labelledby="saved-title">
+  <div class="bag">
+    <div class="bag-head">
+      <h2 class="wide" id="saved-title">Saved</h2>
+      <button class="x" type="button" id="saved-close" aria-label="Close saved pieces">×</button>
+    </div>
+    <ul class="bag-lines" id="saved-lines"></ul>
+    <div class="bag-empty" id="saved-empty" hidden>
+      <p>Nothing saved yet. Tap the heart on any piece to keep it here.</p>
+      <button class="btn primary" type="button" id="saved-shop">Shop Drop 01</button>
+    </div>
+    <p class="saved-fine">Saved pieces are kept on this device only.</p>
+  </div>
+</dialog>
+
+<dialog class="palette" id="search" aria-label="Search the shop">
+  <div class="palette-box">
+    <div class="palette-in">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+      <input id="search-in" type="text" role="combobox" aria-label="Search pieces" aria-expanded="true" aria-controls="search-list" aria-autocomplete="list" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Search hoodies, olive, tees…">
+      <button class="esc-btn" type="button" id="search-close">Esc<span class="vh"> to close search</span></button>
+    </div>
+    <ul class="palette-list" id="search-list" role="listbox" aria-label="Results"></ul>
+    <p class="palette-empty" id="search-empty" hidden></p>
+    <p class="palette-help" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></p>
+    <p class="vh" id="search-status" role="status"></p>
   </div>
 </dialog>
 
@@ -394,7 +481,7 @@
 </div>
 <p class="vh" id="live" aria-live="polite"></p>
 
-<script src="assets/js/catalog.js"></script>
-<script src="assets/js/site.js"></script>
+<script src="assets/js/catalog.js" defer></script>
+<script src="assets/js/site.js" defer></script>
 </body>
 </html>

@@ -10,6 +10,12 @@
   .og .right{position:relative;background:radial-gradient(110% 95% at 50% 30%,#6A6C75 0%,#4A4C55 45%,#1B1C21 100%)}
   .og .right img{position:absolute;inset:6% 4% 0;width:92%;height:94%;object-fit:contain}
   .og .ch{position:absolute;top:26px;left:30px;font-family:var(--font-mono);font-weight:600;font-size:34px;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+  .og-p .left{min-width:0;align-content:space-between;padding:56px 24px 56px 64px}
+  .og-p .brand{display:flex;align-items:center;gap:14px;font-family:var(--font-display);font-weight:900;font-stretch:125%;font-size:34px}
+  .og-p .brand .strip{width:28px;height:30px}
+  .og-p .name{min-width:0;overflow:hidden;font-family:var(--font-display);font-weight:900;font-stretch:125%;font-size:76px;line-height:.92;text-transform:uppercase;text-wrap:balance}
+  .og-p .tag{font-size:26px;color:#F1F1F4}
+  .og-p .right{background:radial-gradient(110% 95% at 50% 30%,color-mix(in srgb,var(--set),#fff 22%) 0%,var(--set) 45%,color-mix(in srgb,var(--set),#000 62%) 100%)}
   .icon{width:180px;height:180px;display:grid;place-items:center;background:#0C0C10}
   .icon .b{display:flex;width:128px;height:92px}.icon .b i{flex:1}
 </style>
@@ -20,5 +26,13 @@
     <div class="tag">Drop 01 · Test Pattern</div>
   </div>
   <div class="right"><span class="ch">CH 02</span><img src="/docs/assets/img/products/test-card-hoodie-black-back.webp" alt=""></div>
+</div>
+<div class="og og-p" id="og-p">
+  <div class="left">
+    <div class="brand"><span class="strip"><i style="background:#C8C8C8"></i><i style="background:#E9DF00"></i><i style="background:#00CFD6"></i><i style="background:#00BF3A"></i><i style="background:#D000C4"></i><i style="background:#E3141C"></i><i style="background:#1426E0"></i></span>PLUGE</div>
+    <div class="name" id="p-name"></div>
+    <div class="tag"><span id="p-price"></span> · Drop 01</div>
+  </div>
+  <div class="right" id="p-set"><span class="ch" id="p-ch"></span><img id="p-img" alt=""></div>
 </div>
 <div class="icon" id="icon"><div class="b"><i style="background:#C8C8C8"></i><i style="background:#E9DF00"></i><i style="background:#00CFD6"></i><i style="background:#00BF3A"></i><i style="background:#D000C4"></i><i style="background:#E3141C"></i><i style="background:#1426E0"></i></div></div>

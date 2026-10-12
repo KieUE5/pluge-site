@@ -1,9 +1,14 @@
 {
   "name": "pluge-image-tools",
   "private": true,
-  "description": "Turns the blank product photos into every colourway with prints applied.",
+  "description": "Builds the site's photos, product pages, share images and Shopify import file.",
   "scripts": {
-    "build-images": "node build-images.cjs"
+    "build-images": "node build-images.cjs",
+    "build-lookbook": "node build-lookbook.cjs",
+    "build-meta": "node build-meta.cjs",
+    "build-pages": "node build-pages.cjs",
+    "check-pages": "node build-pages.cjs --check",
+    "build-shopify-csv": "node build-shopify-csv.cjs"
   },
   "devDependencies": {
     "@fontsource-variable/archivo": "5.2.5",

@@ -2,25 +2,33 @@
 (() => {
   "use strict";
 
-  const { BRAND, SHIP, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES } = window.PLUGE;
+  const { BRAND, SHIP, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS, CHECKOUT } = window.PLUGE;
   const DROP_02 = new Date(window.PLUGE.DROP_02);
   const BANK_HOLIDAYS = new Set(window.PLUGE.BANK_HOLIDAYS);
   const BAG_KEY = "pluge-bag-v1";
+  const SAVED_KEY = "pluge-saved-v1";
+  const RECENT_KEY = "pluge-recent-v1";
   const MOTION_KEY = "pluge-motion";
   const MAX_QTY = 10;
   const CHANNEL_DWELL = 5200; // ms each hero channel stays on screen
-  const BAR_COLOURS = ["#C8C8C8", "#E9DF00", "#00CFD6", "#00BF3A", "#D000C4", "#E3141C", "#1426E0"];
 
   const gbp2 = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
   const gbp0 = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
   const price = n => Number.isInteger(n) ? gbp0.format(n) : gbp2.format(n);
   const money = n => gbp2.format(n);
+  const listing = arr => arr.length < 2 ? arr.join("") : `${arr.slice(0, -1).join(", ")} and ${arr[arr.length - 1]}`;
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
   const $ = sel => document.querySelector(sel);
   const pad = n => String(n).padStart(2, "0");
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const root = document.documentElement;
+  // Each product also has its own page at p/<id>/, and the address changes as the product sheet opens,
+  // so every asset address is built from the site root rather than from the current address.
+  const ROOT = new URL(".", document.baseURI).href;
+  const HOME_TITLE = root.dataset.homeTitle || document.title;
+  // Change the address bar only on the real site, not in an embedded preview or a file opened from disk.
+  const ROUTING = window.self === window.top && /^https?:$/.test(location.protocol);
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const narrowScreen = window.matchMedia("(max-width: 640px)").matches;
   let still = root.dataset.motion === "off"; // true when animation is off
@@ -33,7 +41,7 @@
   const colourOut = (p, key) => p.sizes.every(s => isOut(p, key, s));
   const hasBack = p => p.views.includes("back");
   const swatchBg = key => COLOURS[key].swatch || COLOURS[key].hex;
-  const imgSrc = (p, key, view, small) => `assets/img/products/${p.id}-${key}-${view}${small ? "-sm" : ""}.webp`;
+  const imgSrc = (p, key, view, small) => `${ROOT}assets/img/products/${p.id}-${key}-${view}${small ? "-sm" : ""}.webp`;
 
   // sizes: the CSS width the image is shown at, so the browser picks the 500px or 1000px file.
   function art(p, key, view = "front", { sizes = "50vw", alt = "", lazy = true, cls = "product-img" } = {}) {
@@ -41,6 +49,29 @@
       ` width="1000" height="1200" alt="${esc(alt)}"${lazy ? ' loading="lazy"' : ""} decoding="async" draggable="false">`;
   }
   const altFor = (p, key, view) => `${p.name} in ${COLOURS[key].name}, ${view} view`;
+  // Lookbook photos: <img>-<width>.webp at full and half width.
+  const lookSrc = (look, w) => `${ROOT}assets/img/lookbook/${look.img}-${w}.webp`;
+  function lookImg(look, { sizes, cls = "", alt = look.alt, lazy = true } = {}) {
+    const half = look.w / 2;
+    return `<img class="${cls}" src="${lookSrc(look, look.w)}" srcset="${lookSrc(look, half)} ${half}w, ${lookSrc(look, look.w)} ${look.w}w" sizes="${sizes}"` +
+      ` width="${look.w}" height="${look.h}" alt="${esc(alt)}"${lazy ? ' loading="lazy"' : ""} decoding="async" draggable="false"${look.pos ? ` style="object-position:${look.pos}"` : ""}>`;
+  }
+  const HEART = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg>`;
+  const norm = str => String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u2013\u2014]/g, "-");
+  const reEsc = str => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  // Saved pieces and recently viewed live in this browser only.
+  function readList(key, valid) {
+    try {
+      const v = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(v) ? v.filter(valid) : [];
+    } catch { return []; }
+  }
+  function writeList(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch { /* storage unavailable; kept for this visit */ }
+  }
+  const validPick = v => v && byId[v.id] && byId[v.id].colours.includes(v.colour);
+
   // Warm the cache before swapping an image in, so the swap never shows a blank frame.
   function preload(src, timeout = 1500) {
     const img = new Image();
@@ -68,23 +99,7 @@
   }
   const shipFee = (key, sub) => SHIP[key].freeOver !== null && sub >= SHIP[key].freeOver ? 0 : SHIP[key].fee;
 
-  // ---- Effects: film grain and TV static -----------------------------------
-  (function makeGrain() {
-    try {
-      const cv = document.createElement("canvas");
-      cv.width = cv.height = 160;
-      const ctx = cv.getContext("2d");
-      const img = ctx.createImageData(160, 160);
-      for (let i = 0; i < img.data.length; i += 4) {
-        const v = Math.random() * 255 | 0;
-        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-        img.data[i + 3] = 255;
-      }
-      ctx.putImageData(img, 0, 0);
-      root.style.setProperty("--grain", `url(${cv.toDataURL()})`);
-    } catch { /* grain is decoration only */ }
-  })();
-
+  // ---- Effects: TV static -----------------------------------------------------
   function burst(canvas, ms) {
     if (still) return Promise.resolve();
     const ctx = canvas.getContext("2d");
@@ -227,7 +242,7 @@
 
   // ---- Velocity marquee ------------------------------------------------------
   const MQ_WORDS = [[BRAND, ""], ["Test pattern", "outline"], ["Drop 01", ""], ["450gsm", "outline"], ["Heavyweight", ""], ["Boxy fit", "outline"]];
-  const glyph = `<span class="mq-glyph">${BAR_COLOURS.map(c => `<i style="background:${c}"></i>`).join("")}</span>`;
+  const glyph = `<span class="mq-glyph"></span>`;
   const mqGroup = words => words.map(([t, cls]) => `<span class="mq-item ${cls}">${esc(t)}${glyph}</span>`).join("");
   const mqA = $("#mq-a"), mqB = $("#mq-b");
   const mq = { a: 0, b: 0, wa: 1, wb: 1, vel: 0, visible: false };
@@ -284,7 +299,7 @@
         </span></span>
         <span class="card-row"><span class="card-name">${esc(p.name)}</span><span class="card-price">${price(p.price)}</span></span>
         <span class="card-meta">${dots}${p.colours.length} ${p.colours.length === 1 ? "colour" : "colours"}</span>
-      </button></li>`;
+      </button><button class="save-tog" type="button" data-id="${p.id}" data-colour="${key}" aria-pressed="${isSaved(p.id)}" aria-label="Save ${esc(p.name)}">${HEART}</button></li>`;
     }).join("");
     if (animate && !still) { grid.classList.remove("swap"); void grid.offsetWidth; grid.classList.add("swap"); }
     if (finePointer) grid.querySelectorAll(".card").forEach(bindTilt);
@@ -333,20 +348,31 @@
     renderGrid(true);
     $("#size-filter").focus();
   });
-  grid.addEventListener("click", e => { const card = e.target.closest(".card"); if (card) openProduct(card.dataset.id, card.dataset.colour); });
+  grid.addEventListener("click", e => {
+    const save = e.target.closest(".save-tog");
+    if (save) { toggleSaved(save.dataset.id, save.dataset.colour); return; }
+    const card = e.target.closest(".card");
+    if (card) openProduct(card.dataset.id, card.dataset.colour);
+  });
 
   // ---- Build the fit (scroll-scrubbed flat lay) -----------------------------
   const fitStage = $("#fit-stage"), fitSec = $("#fit");
   fitStage.insertAdjacentHTML("beforeend", FIT.map(f =>
     `<button class="piece" type="button" tabindex="-1" aria-hidden="true" data-id="${f.id}" data-colour="${f.colour}" style="--w:${f.w}%;left:${f.x}%;top:${f.y}%;z-index:${f.z}">${art(byId[f.id], f.colour, "front", { sizes: "(max-width: 860px) 50vw, 30vw" })}</button>`).join(""));
   const pieces = [...fitStage.querySelectorAll(".piece")];
-  $("#fit-list").innerHTML = FIT.map(f => {
-    const p = byId[f.id];
-    return `<li><button type="button" data-id="${f.id}" data-colour="${f.colour}"><span class="k">${f.k}</span><span class="nm">${esc(p.name)}</span><span class="pr">${price(p.price)}</span></button></li>`;
-  }).join("");
-  const fitItems = [...document.querySelectorAll("#fit-list li")];
+  let fitItems = [];
+  function renderFitList() {
+    $("#fit-list").innerHTML = FIT.map(f => {
+      const p = byId[f.id];
+      return `<li><button type="button" data-id="${f.id}" data-colour="${f.colour}"><span class="k">${f.k}</span><span class="nm">${esc(p.name)}</span><span class="pr">${price(p.price)}</span></button></li>`;
+    }).join("");
+    fitItems = [...document.querySelectorAll("#fit-list li")];
+    fitShownTotal = -1;
+    fitDirty = true;
+  }
   const fitTotalEl = $("#fit-total");
   let fitDirty = true, fitShownTotal = -1;
+  renderFitList();
   const easeOutBack = t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
   function updateFit() {
@@ -375,6 +401,132 @@
   const openFromFit = e => { const b = e.target.closest("[data-id]"); if (b) openProduct(b.dataset.id, b.dataset.colour); };
   fitStage.addEventListener("click", openFromFit);
   $("#fit-list").addEventListener("click", openFromFit);
+  $("#fit-shop").addEventListener("click", () => openKit({ title: "Full broadcast", items: FIT.map(f => [f.id, f.colour]) }));
+
+  // ---- Lookbook --------------------------------------------------------------
+  const lookTotal = look => look.pieces.reduce((sum, [id]) => sum + byId[id].price, 0);
+  function renderLooks() {
+    $("#looks").innerHTML = LOOKS.map((look, i) => {
+      const wide = look.w > look.h, m = look.model;
+      const wears = m ? look.pieces.filter(([id]) => m.wears[id]).map(([id]) => `${byId[id].short} ${m.wears[id]}`).join(" · ") : "";
+      return `<figure class="look${wide ? " look-wide" : ""}" style="--ar:${look.w}/${look.h}">
+        <div class="look-frame" data-look="${i}">
+          ${lookImg(look, { sizes: wide ? "(max-width: 720px) 160vw, (max-width: 1320px) 64vw, 860px" : "(max-width: 720px) 80vw, (max-width: 1320px) 40vw, 540px" })}
+          <span class="look-osd" aria-hidden="true">Look ${look.n}</span>
+          <span class="look-rec" aria-hidden="true"><i></i>${look.fitCheck ? "Studio" : "Location"}</span>
+          <span class="look-cta" aria-hidden="true">Shop the look</span>
+        </div>
+        <figcaption class="look-cap">
+          <span class="look-num" aria-hidden="true">${look.n}</span>
+          <span class="look-txt"><b>${esc(look.title)}</b><span>${esc(look.pieces.map(([id]) => byId[id].name).join(" · "))}</span></span>
+          <button class="look-shop" type="button" data-look="${i}" aria-haspopup="dialog">Shop <span>${price(lookTotal(look))}</span><span class="vh">: look ${look.n}, ${esc(look.title)}</span></button>
+          ${m ? `<span class="look-model">Model is ${m.height}cm · ${esc(wears)}</span>` : ""}
+        </figcaption>
+      </figure>`;
+    }).join("") + `<div class="look-tile">
+        <p class="eyebrow">Fit notes</p>
+        <p class="tile-big wide">Boxy on purpose</p>
+        <div class="tile-body">
+          <p>Hoodies, crews and tees are cut boxy with a dropped shoulder. Take your usual size for the fit in these photos, or one size down for a closer fit.</p>
+          <p>Cargos are a relaxed straight leg. Take your usual waist size.</p>
+          <p class="tile-small">Every product has a size guide, and a size finder that matches a top you already own.</p>
+        </div>
+      </div>`;
+  }
+  function shopLook(i) {
+    const look = LOOKS[i];
+    openKit({
+      title: `Look ${look.n}`,
+      items: look.pieces.map(([id, colour]) => [id, colour, look.model && look.model.wears[id]]),
+      intro: `<div class="kit-look">${lookImg(look, { sizes: "96px", alt: "" })}<p><b>${esc(look.title)}</b><span>${look.pieces.length} ${look.pieces.length === 1 ? "piece" : "pieces"}${look.model ? `, model is ${look.model.height}cm` : ""}</span></p></div>`,
+    });
+  }
+  $("#looks").addEventListener("click", e => { const b = e.target.closest("[data-look]"); if (b) shopLook(+b.dataset.look); });
+
+  // ---- Shop the look: every piece of a look (or the fit) with a size for each --
+  const kit = $("#kit");
+  let kitItems = [], kitName = "";
+  function openKit({ title, items, intro = "" }) {
+    kitName = title;
+    kitItems = items.map(([id, colour, wears]) => {
+      const p = byId[id], out = colourOut(p, colour);
+      const size = p.sizes.length === 1 && !out ? p.sizes[0] : "";
+      return { p, colour, size, out, wears };
+    });
+    $("#kit-title").textContent = title;
+    $("#kit-intro").innerHTML = intro;
+    $("#kit-intro").hidden = !intro;
+    $("#kit-msg").textContent = "";
+    renderKit();
+    if (!kit.open) kit.showModal();
+  }
+  function renderKit() {
+    $("#kit-lines").innerHTML = kitItems.map((it, i) => {
+      const { p, colour } = it;
+      const sizePick = it.out ? `<span class="kit-out">Sold out in ${esc(COLOURS[colour].name)}</span>`
+        : p.sizes.length === 1 ? `<span class="kit-one">${esc(p.sizes[0])}</span>`
+        : `<label class="kit-size" for="kit-size-${i}"><span class="vh">Size for ${esc(p.name)}</span><select id="kit-size-${i}" data-i="${i}">
+            <option value="">Choose size</option>${p.sizes.map(sz => {
+              const out = isOut(p, colour, sz);
+              return `<option value="${esc(sz)}"${out ? " disabled" : ""}${sz === it.size ? " selected" : ""}>${esc(sz)}${out ? " (sold out)" : ""}</option>`;
+            }).join("")}</select></label>`;
+      return `<li class="line kit-line${it.out ? " out" : ""}">
+        <span class="line-thumb">${art(p, colour, "front", { sizes: "80px" })}</span>
+        <div>
+          <p class="line-name">${esc(p.name)}</p>
+          <p class="line-opts">${esc(COLOURS[colour].name)}${it.wears ? ` · Model wears ${esc(it.wears)}` : ""}</p>
+          <div class="kit-ctl">${sizePick}</div>
+          <div class="line-ctl">
+            <button class="remove" type="button" data-act="details" data-i="${i}">Details</button>
+            <button class="remove" type="button" data-act="remove" data-i="${i}">Remove<span class="vh"> ${esc(p.name)} from this look</span></button>
+          </div>
+        </div>
+        <span class="line-price">${price(p.price)}</span>
+      </li>`;
+    }).join("");
+    const live = kitItems.filter(it => !it.out);
+    const total = live.reduce((sum, it) => sum + it.p.price, 0);
+    $("#kit-total").textContent = money(total);
+    const add = $("#kit-add");
+    add.disabled = live.length === 0;
+    add.textContent = live.length ? `Add ${live.length} ${live.length === 1 ? "piece" : "pieces"} to bag` : "Nothing left to add";
+  }
+  $("#kit-lines").addEventListener("change", e => {
+    const it = kitItems[+e.target.dataset.i];
+    if (!it) return;
+    it.size = e.target.value;
+    $("#kit-msg").textContent = "";
+  });
+  $("#kit-lines").addEventListener("click", e => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const i = +b.dataset.i, it = kitItems[i];
+    if (b.dataset.act === "details") { kit.close(); openProduct(it.p.id, it.colour); return; }
+    kitItems.splice(i, 1);
+    renderKit();
+    announce(`Removed ${it.p.name} from this look.`);
+    const next = $("#kit-lines").querySelectorAll('[data-act="remove"]')[Math.min(i, kitItems.length - 1)];
+    (next || $("#kit-close")).focus();
+  });
+  $("#kit-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const live = kitItems.filter(it => !it.out);
+    const missing = live.find(it => !it.size);
+    if (missing) {
+      $("#kit-msg").textContent = `Choose a size for the ${missing.p.name}.`;
+      $(`#kit-size-${kitItems.indexOf(missing)}`).focus();
+      return;
+    }
+    if (!live.length) return;
+    fresh.clear();
+    live.forEach(it => addToBag(it.p.id, it.colour, it.size));
+    kit.close();
+    bumpBag();
+    const msg = `Added ${live.length} ${live.length === 1 ? "piece" : "pieces"} from ${kitName}`;
+    showToast(msg);
+    announce(`${msg} to your bag.`);
+  });
+  $("#kit-close").addEventListener("click", () => kit.close());
 
   // ---- Product sheet: turntable, zoom, static on colour change -------------
   const pd = $("#pd");
@@ -383,19 +535,43 @@
   const LENS = 190, LENS_ZOOM = 2.4, ZOOM = 2.2;
   const PD_SIZES = "(max-width: 760px) 100vw, 600px";
   const sel = { p: null, colour: null, size: null };
-  let angle = 0, side = "front", tweenId = 0, drag = null, units = "cm";
+  let angle = 0, side = "front", tweenId = 0, drag = null, units = "cm", modelOn = false;
   let zoomed = false, pan = { x: 0, y: 0 }, lastTap = { t: 0, x: 0, y: 0 };
 
   const sideFor = a => { const n = ((a % 360) + 360) % 360; return n > 90 && n < 270 ? "back" : "front"; };
+
+  // On-model photos come from the lookbook. A studio fit check in the chosen colour comes first.
+  const lookPieces = LOOKS.flatMap(look => look.pieces.map(([id, colour]) => ({ look, id, colour })));
+  function modelShot(p, colour) {
+    const rank = x => (x.colour === colour ? 0 : 2) + (x.look.model && x.look.model.wears[p.id] ? 0 : 1);
+    return lookPieces.filter(x => x.id === p.id).sort((a, b) => rank(a) - rank(b))[0] || null;
+  }
+  const modelSize = (p, shot) => shot.look.model && shot.look.model.wears[p.id];
+
   function drawFace() {
     const p = sel.p;
-    face.innerHTML = art(p, sel.colour, side, { sizes: PD_SIZES, alt: altFor(p, sel.colour, side), lazy: false });
-    lensInner.innerHTML = `<img class="product-img" src="${imgSrc(p, sel.colour, side)}" alt="" decoding="async">`;
-    document.querySelectorAll("#pd-views .pd-view").forEach(v => v.setAttribute("aria-pressed", String(v.dataset.view === side)));
+    const shot = modelOn ? modelShot(p, sel.colour) : null;
+    if (shot) {
+      const look = shot.look, wide = look.w > look.h, cls = `model-img${wide ? " cover" : ""}`;
+      // Portrait photos sit whole in the frame over a blurred copy of themselves; wide ones are cropped.
+      face.innerHTML = (wide ? "" : `<img class="model-bg" src="${lookSrc(look, look.w / 2)}" alt="" decoding="async" draggable="false">`) +
+        lookImg(look, { sizes: PD_SIZES, cls, lazy: false });
+      lensInner.innerHTML = `<img class="${cls}" src="${lookSrc(look, look.w)}" alt="" decoding="async"${look.pos ? ` style="object-position:${look.pos}"` : ""}>`;
+      const size = modelSize(p, shot);
+      const what = size ? `Model is ${shot.look.model.height}cm and wears ${size}` : `Look ${look.n}: ${look.title}`;
+      $("#pd-model-cap").textContent = shot.colour === sel.colour ? what : `${what} · Shown in ${COLOURS[shot.colour].name}`;
+    } else {
+      face.innerHTML = art(p, sel.colour, side, { sizes: PD_SIZES, alt: altFor(p, sel.colour, side), lazy: false });
+      lensInner.innerHTML = `<img class="product-img" src="${imgSrc(p, sel.colour, side)}" alt="" decoding="async">`;
+    }
+    $("#pd-model-cap").hidden = !shot;
+    const current = modelOn ? "model" : side;
+    document.querySelectorAll("#pd-views .pd-view").forEach(v => v.setAttribute("aria-pressed", String(v.dataset.view === current)));
   }
+  const canTurn = () => hasBack(sel.p) && !modelOn;
   function applyAngle(a) {
     angle = a;
-    const s = hasBack(sel.p) ? sideFor(a) : "front";
+    const s = canTurn() ? sideFor(a) : "front";
     if (s !== side) { side = s; drawFace(); }
     turn.style.transform = `rotateY(${a.toFixed(2)}deg)`;
     face.style.transform = s === "back" ? "scaleX(-1)" : "";
@@ -460,9 +636,10 @@
         applyPan();
         return;
       }
+      if (modelOn) return;
       if (drag.moved) stage.classList.add("dragging");
       let a = drag.a + dx * 0.55;
-      if (!hasBack(sel.p)) a = clamp(a, -38, 38);
+      if (!canTurn()) a = clamp(a, -38, 38);
       applyAngle(a);
       return;
     }
@@ -474,7 +651,7 @@
     const moved = drag.moved;
     drag = null;
     stage.classList.remove("dragging", "panning");
-    if (!zoomed) tweenTo(hasBack(sel.p) ? Math.round(angle / 180) * 180 : 0, 520);
+    if (!zoomed && !modelOn) tweenTo(canTurn() ? Math.round(angle / 180) * 180 : 0, 520);
     if (e.type === "pointerup" && !moved) {
       // Double-tap (or double-click) toggles zoom at that point.
       const r = stage.getBoundingClientRect();
@@ -488,14 +665,16 @@
   stage.addEventListener("pointerleave", () => { lens.hidden = true; });
   zoomBtn.addEventListener("click", () => setZoom(!zoomed));
 
-  function openProduct(id, colour) {
+  function openProduct(id, colour, { push = true } = {}) {
     const p = byId[id];
+    if (!p) return;
     sel.p = p;
     sel.colour = colour && p.colours.includes(colour) && !colourOut(p, colour) ? colour : (p.colours.find(k => !colourOut(p, k)) || p.colours[0]);
     sel.size = null;
     tweenId++;
     angle = 0;
     side = "front";
+    modelOn = false;
     turn.style.transform = "";
     face.style.transform = "";
     setZoom(false);
@@ -510,9 +689,6 @@
     $("#pd-details").innerHTML = p.details.map(d => `<li>${esc(d)}</li>`).join("");
     $("#pd-deco").textContent = p.deco;
     $("#pd-care").textContent = CARE[p.care];
-    const touchHint = hasBack(p) ? "Drag to turn · Double-tap to zoom" : "Double-tap to zoom";
-    const mouseHint = hasBack(p) ? "Drag to turn · Hover to zoom" : "Hover to zoom";
-    $("#pd-hint").textContent = finePointer ? mouseHint : touchHint;
 
     const g = p.guide && GUIDES[p.guide];
     $("#pd-guide-wrap").hidden = !g;
@@ -535,8 +711,11 @@
     }).join("");
 
     renderVariant();
+    syncSavedButtons();
+    noteRecent(p.id, sel.colour);
     if (!pd.open) pd.showModal();
     pd.scrollTop = 0;
+    syncUrl(push);
     if (hasBack(p) && !still) setTimeout(() => { if (pd.open && !drag && !zoomed) { tweenTo(34, 520); setTimeout(() => { if (!drag && !zoomed) tweenTo(0, 700); }, 560); } }, 520);
   }
 
@@ -619,10 +798,29 @@
     if (!sel.size && p.sizes.length === 1 && !isOut(p, key, p.sizes[0])) sel.size = p.sizes[0];
 
     $("#pd-colour-name").textContent = c.name;
-    $("#pd-views").innerHTML = hasBack(p) ? ["front", "back"].map(v =>
-      `<button class="pd-view" type="button" data-view="${v}" aria-pressed="${v === side}" aria-label="Show ${v}">${art(p, key, v, { sizes: "64px" })}</button>`).join("") : "";
-    stage.classList.toggle("static-only", !hasBack(p));
+    const shot = modelShot(p, key);
+    if (!shot) modelOn = false;
+    const views = [...(hasBack(p) ? ["front", "back"] : shot ? ["front"] : []), ...(shot ? ["model"] : [])];
+    const current = modelOn ? "model" : side;
+    $("#pd-views").innerHTML = views.map(v => {
+      const thumb = v === "model"
+        ? `<img class="model-thumb" src="${lookSrc(shot.look, shot.look.w / 2)}" alt="" loading="lazy" decoding="async" style="object-position:${shot.look.pos || "50% 35%"}">`
+        : art(p, key, v, { sizes: "64px" });
+      return `<button class="pd-view" type="button" data-view="${v}" aria-pressed="${v === current}" aria-label="${v === "model" ? "Show on a model" : `Show ${v}`}">${thumb}</button>`;
+    }).join("");
+    stage.classList.toggle("static-only", !canTurn());
+    stage.classList.toggle("on-model", modelOn);
+    const turnHint = canTurn() ? "Drag to turn · " : "";
+    $("#pd-hint").textContent = turnHint + (finePointer ? "Hover to zoom" : "Double-tap to zoom");
     drawFace();
+
+    // How it fits: the model's height and size, from the lookbook.
+    const size = shot && modelSize(p, shot);
+    $("#pd-fit-note").hidden = !shot;
+    if (shot) {
+      $("#pd-fit-text").textContent = size ? `Model is ${shot.look.model.height}cm and wears ${size}.` : `Seen in look ${shot.look.n}, ${shot.look.title}.`;
+      $("#pd-fit-view").textContent = modelOn ? "Show the product" : "View on model";
+    }
 
     // Sold-out sizes stay selectable so shoppers can ask to hear when they're back.
     $("#pd-sizes").innerHTML = p.sizes.map((s, i) => {
@@ -652,8 +850,11 @@
     if (e.target.name !== "pd-colour") return;
     sel.colour = e.target.value;
     const b = burst(pdStatic, 280);
-    await Promise.all([still ? null : wait(120), preload(imgSrc(sel.p, sel.colour, side))]);
+    const shot = modelOn && modelShot(sel.p, sel.colour);
+    await Promise.all([still ? null : wait(120), preload(shot ? lookSrc(shot.look, shot.look.w / 2) : imgSrc(sel.p, sel.colour, side))]);
     renderVariant();
+    noteRecent(sel.p.id, sel.colour);
+    syncUrl(false);
     await b;
   });
   $("#pd-sizes").addEventListener("change", e => {
@@ -661,12 +862,32 @@
     sel.size = e.target.value;
     updateAdd();
   });
-  $("#pd-views").addEventListener("click", e => {
+  async function setModel(on) {
+    if (on === modelOn) return;
+    tweenId++;
+    setZoom(false);
+    const shot = on && modelShot(sel.p, sel.colour);
+    const b = burst(pdStatic, 260);
+    await Promise.all([still ? null : wait(110), shot ? preload(lookSrc(shot.look, shot.look.w / 2)) : null]);
+    modelOn = on;
+    angle = 0;
+    side = "front";
+    turn.style.transform = "";
+    face.style.transform = "";
+    renderVariant();
+    await b;
+  }
+  $("#pd-views").addEventListener("click", async e => {
     const b = e.target.closest("[data-view]");
     if (!b) return;
+    const v = b.dataset.view;
+    if (v === "model") { setModel(true); return; }
+    if (modelOn) { await setModel(false); if (v === "back") tweenTo(180, 760); return; }
     if (zoomed) setZoom(false);
-    tweenTo(nearest(b.dataset.view === "back" ? 180 : 0), 760);
+    tweenTo(nearest(v === "back" ? 180 : 0), 760);
   });
+  $("#pd-fit-view").addEventListener("click", () => setModel(!modelOn));
+  $("#pd-save").addEventListener("click", () => toggleSaved(sel.p.id, sel.colour));
   $("#pd-form").addEventListener("submit", e => {
     e.preventDefault();
     if (!sel.size) return;
@@ -676,7 +897,7 @@
       return;
     }
     const from = stage.getBoundingClientRect();
-    const src = imgSrc(p, colour, side);
+    const src = imgSrc(p, colour, modelOn ? "front" : side);
     addToBag(p.id, colour, size);
     pd.close();
     const msg = `Added ${p.name}, ${COLOURS[colour].name}, ${size}`;
@@ -708,7 +929,8 @@
 
   // ---- Bag -----------------------------------------------------------------
   const bagDlg = $("#bag");
-  let bag = loadBag(), freshKey = null, shipKey = "t48";
+  let bag = loadBag(), shipKey = "t48";
+  const fresh = new Set(); // lines just added, highlighted the next time the bag opens
 
   function loadBag() {
     try {
@@ -728,7 +950,7 @@
     const hit = bag.find(l => l.id === id && l.colour === colour && l.size === size);
     if (hit) hit.qty = Math.min(hit.qty + 1, MAX_QTY);
     else bag.push({ id, colour, size, qty: 1 });
-    freshKey = `${id}|${colour}|${size}`;
+    fresh.add(`${id}|${colour}|${size}`);
     saveBag();
     renderBag();
   }
@@ -747,7 +969,7 @@
     $("#bag-count").textContent = count;
     $("#bag-open").setAttribute("aria-label", `Bag, ${count} ${count === 1 ? "item" : "items"}`);
     $("#bag-title").textContent = count ? `Bag (${count})` : "Bag";
-    $("#checkout-note").hidden = true;
+    if (!checkingOut) $("#checkout-note").hidden = true;
 
     const empty = bag.length === 0;
     $("#bag-empty").hidden = !empty;
@@ -767,7 +989,7 @@
 
     $("#bag-lines").innerHTML = bag.map(l => {
       const p = byId[l.id], k = lineKey(l);
-      return `<li class="line${k === freshKey ? " fresh" : ""}">
+      return `<li class="line${fresh.has(k) ? " fresh" : ""}">
         <span class="line-thumb">${art(p, l.colour, "front", { sizes: "80px" })}</span>
         <div>
           <p class="line-name">${esc(p.name)}</p>
@@ -801,7 +1023,7 @@
     if (b.dataset.act === "remove") line.qty = 0;
     const removed = line.qty <= 0;
     bag = bag.filter(l => l.qty > 0);
-    freshKey = null;
+    fresh.clear();
     saveBag();
     renderBag();
     if (removed) {
@@ -815,11 +1037,11 @@
   $("#bag-foot").addEventListener("change", e => {
     if (e.target.name !== "ship") return;
     shipKey = e.target.value;
-    freshKey = null;
+    fresh.clear();
     renderBag();
   });
 
-  function openBag() { hideToast(); renderBag(); freshKey = null; if (!bagDlg.open) bagDlg.showModal(); }
+  function openBag() { hideToast(); renderBag(); fresh.clear(); if (!bagDlg.open) bagDlg.showModal(); }
   $("#bag-open").addEventListener("click", openBag);
   $("#bag-close").addEventListener("click", () => bagDlg.close());
   $("#bag-continue").addEventListener("click", () => bagDlg.close());
@@ -827,13 +1049,334 @@
     bagDlg.close();
     $("#shop").scrollIntoView({ behavior: still ? "auto" : "smooth" });
   });
-  $("#checkout").addEventListener("click", () => { $("#checkout-note").hidden = false; });
-  [pd, bagDlg].forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+
+  // ---- Checkout: Shopify Storefront API ------------------------------------
+  // With CHECKOUT filled in (catalog.js), the bag becomes a Shopify cart and the shopper pays on
+  // Shopify's checkout. Without it, the bag explains that this is a preview.
+  const shop = CHECKOUT && CHECKOUT.shopDomain && CHECKOUT.storefrontToken ? CHECKOUT : null;
+  let variantsP = null, checkingOut = false;
+  async function storefront(query, variables) {
+    const res = await fetch(`https://${shop.shopDomain}/api/${shop.apiVersion}/graphql.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Shopify-Storefront-Access-Token": shop.storefrontToken },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!res.ok) throw new Error(`the shop replied ${res.status}`);
+    const json = await res.json();
+    if (json.errors && json.errors.length) throw new Error(json.errors[0].message);
+    return json.data;
+  }
+  // Shopify products are matched by handle (= product id here), then by their Colour and Size options.
+  const optKey = v => norm(v).replace(/[^a-z0-9]+/g, "");
+  const VARIANTS_Q = `query PlugeVariants {
+    products(first: 100) { nodes { handle variants(first: 100) { nodes {
+      id availableForSale price { amount currencyCode } selectedOptions { name value }
+    } } } }
+  }`;
+  function loadVariants() {
+    if (variantsP) return variantsP;
+    const colourByName = new Map(Object.entries(COLOURS).map(([k, c]) => [optKey(c.name), k]));
+    variantsP = storefront(VARIANTS_Q).then(data => {
+      const map = new Map();
+      for (const prod of data.products.nodes) {
+        const p = byId[prod.handle];
+        if (!p) continue;
+        for (const v of prod.variants.nodes) {
+          const opt = re => v.selectedOptions.find(o => re.test(o.name));
+          const c = opt(/^colou?r$/i), z = opt(/^size$/i);
+          const colour = c ? colourByName.get(optKey(c.value)) : p.colours.length === 1 ? p.colours[0] : null;
+          const size = z ? p.sizes.find(x => optKey(x) === optKey(z.value)) : p.sizes.length === 1 ? p.sizes[0] : null;
+          if (!colour || !size || !p.colours.includes(colour)) continue;
+          map.set(`${p.id}|${colour}|${size}`, { id: v.id, available: v.availableForSale, price: Number(v.price.amount), currency: v.price.currencyCode });
+        }
+      }
+      return map;
+    });
+    variantsP.catch(() => { variantsP = null; });
+    return variantsP;
+  }
+  // Shopify's stock and prices replace the ones in catalog.js, so what's shown is what's charged.
+  function applyStock(map) {
+    for (const p of PRODUCTS) {
+      const known = [...map.keys()].some(k => k.startsWith(`${p.id}|`));
+      if (!known) { console.warn(`PLUGE: "${p.id}" isn't in the Shopify store, so it can't be bought yet.`); continue; }
+      p.colours.forEach(k => { p.soldOut[k] = p.sizes.filter(sz => { const v = map.get(`${p.id}|${k}|${sz}`); return !v || !v.available; }); });
+      const prices = [...map.entries()].filter(([k, v]) => k.startsWith(`${p.id}|`) && v.currency === "GBP").map(([, v]) => v.price);
+      if (prices.length) p.price = Math.min(...prices);
+    }
+    renderGrid(false);
+    renderFitList();
+    renderLooks();
+    renderBag();
+    if (pd.open) { $("#pd-price").textContent = price(sel.p.price); renderVariant(); }
+  }
+
+  $("#checkout").addEventListener("click", async () => {
+    const note = $("#checkout-note"), btn = $("#checkout");
+    if (!shop) {
+      note.textContent = "This is a preview site and isn't taking orders yet. No payment provider is connected, so nothing was charged.";
+      note.hidden = false;
+      return;
+    }
+    checkingOut = true;
+    btn.disabled = true;
+    btn.textContent = "Opening checkout…";
+    note.hidden = true;
+    try {
+      const map = await loadVariants();
+      const missing = bag.filter(l => !map.get(lineKey(l)) || !map.get(lineKey(l)).available);
+      if (missing.length) {
+        applyStock(map);
+        const names = missing.map(l => `${byId[l.id].name} (${COLOURS[l.colour].name}, ${l.size})`);
+        throw new Error(`${listing(names)} ${missing.length === 1 ? "has" : "have"} just sold out. Remove ${missing.length === 1 ? "it" : "them"} to carry on`);
+      }
+      const data = await storefront(`mutation PlugeCart($input: CartInput!) {
+        cartCreate(input: $input) { cart { checkoutUrl } userErrors { field message } }
+      }`, { input: { lines: bag.map(l => ({ merchandiseId: map.get(lineKey(l)).id, quantity: l.qty })), buyerIdentity: { countryCode: "GB" } } });
+      const { cart, userErrors } = data.cartCreate;
+      if (userErrors && userErrors.length) throw new Error(userErrors[0].message);
+      window.location.assign(cart.checkoutUrl);
+    } catch (err) {
+      note.textContent = `Checkout didn't open: ${String(err.message || err).replace(/\.$/, "")}. Nothing has been charged.`;
+      note.hidden = false;
+      btn.disabled = false;
+      btn.textContent = "Checkout";
+      checkingOut = false;
+    }
+  });
+  $("#ship-fine").hidden = !shop;
+  // Coming back from Shopify's checkout with the browser's back button restores this page from cache.
+  window.addEventListener("pageshow", e => {
+    if (!e.persisted || !checkingOut) return;
+    checkingOut = false;
+    $("#checkout").disabled = false;
+    $("#checkout").textContent = "Checkout";
+  });
+  if (shop && shop.syncStock) loadVariants().then(applyStock, err => console.warn(`PLUGE: couldn't load stock from Shopify: ${err.message}`));
+
+  // ---- Saved pieces ----------------------------------------------------------
+  const savedDlg = $("#saved");
+  let saved = readList(SAVED_KEY, validPick).slice(0, 60);
+  const isSaved = id => saved.some(x => x.id === id);
+  function toggleSaved(id, colour) {
+    const on = !isSaved(id);
+    saved = on ? [{ id, colour }, ...saved] : saved.filter(x => x.id !== id);
+    writeList(SAVED_KEY, saved);
+    syncSavedButtons(id);
+    if (savedDlg.open) renderSaved();
+    announce(on ? `Saved ${byId[id].name}.` : `Removed ${byId[id].name} from saved.`);
+  }
+  // pop: the id that just changed, so its buttons get a little bounce.
+  function syncSavedButtons(pop) {
+    const n = saved.length;
+    $("#saved-count").textContent = n;
+    $("#saved-count").hidden = n === 0;
+    $("#saved-open").setAttribute("aria-label", `Saved, ${n} ${n === 1 ? "piece" : "pieces"}`);
+    const btns = [...document.querySelectorAll(".save-tog")];
+    if (sel.p) { $("#pd-save").dataset.id = sel.p.id; btns.push($("#pd-save")); }
+    btns.forEach(b => {
+      b.setAttribute("aria-pressed", String(isSaved(b.dataset.id)));
+      if (pop && b.dataset.id === pop && !still) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); }
+    });
+    if (pop && !still) { const h = $("#saved-open"); h.classList.remove("pop"); void h.offsetWidth; h.classList.add("pop"); }
+  }
+  function renderSaved() {
+    const empty = saved.length === 0;
+    $("#saved-empty").hidden = !empty;
+    $("#saved-lines").hidden = empty;
+    $("#saved-lines").innerHTML = saved.map(x => {
+      const p = byId[x.id], out = colourOut(p, x.colour);
+      return `<li class="line">
+        <span class="line-thumb">${art(p, x.colour, "front", { sizes: "80px" })}</span>
+        <div>
+          <p class="line-name">${esc(p.name)}</p>
+          <p class="line-opts">${esc(COLOURS[x.colour].name)}${out ? " · Sold out" : ""}</p>
+          <div class="line-ctl">
+            <button class="btn small" type="button" data-act="open" data-id="${p.id}" data-colour="${x.colour}">${out ? "View" : "Choose size"}<span class="vh">: ${esc(p.name)}</span></button>
+            <button class="remove" type="button" data-act="remove" data-id="${p.id}">Remove<span class="vh"> ${esc(p.name)}</span></button>
+          </div>
+        </div>
+        <span class="line-price">${price(p.price)}</span>
+      </li>`;
+    }).join("");
+  }
+  $("#saved-lines").addEventListener("click", e => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    if (b.dataset.act === "open") { savedDlg.close(); openProduct(b.dataset.id, b.dataset.colour); return; }
+    const i = saved.findIndex(x => x.id === b.dataset.id);
+    toggleSaved(b.dataset.id);
+    const rest = $("#saved-lines").querySelectorAll('[data-act="remove"]');
+    (rest[Math.min(i, rest.length - 1)] || $("#saved-shop")).focus();
+  });
+  $("#saved-open").addEventListener("click", () => { renderSaved(); if (!savedDlg.open) savedDlg.showModal(); });
+  $("#saved-close").addEventListener("click", () => savedDlg.close());
+  $("#saved-shop").addEventListener("click", () => {
+    savedDlg.close();
+    $("#shop").scrollIntoView({ behavior: still ? "auto" : "smooth" });
+  });
+
+  // ---- Recently viewed -----------------------------------------------------
+  let recent = readList(RECENT_KEY, validPick).slice(0, 8);
+  function noteRecent(id, colour) {
+    recent = [{ id, colour }, ...recent.filter(x => x.id !== id)].slice(0, 8);
+    writeList(RECENT_KEY, recent);
+  }
+  function renderRecent() {
+    $("#recent").hidden = recent.length === 0;
+    $("#recent-row").innerHTML = recent.map(x => {
+      const p = byId[x.id];
+      return `<li><button class="mini" type="button" data-id="${p.id}" data-colour="${x.colour}">
+        <span class="mini-img">${art(p, x.colour, "front", { sizes: "150px" })}</span>
+        <span class="mini-name">${esc(p.name)}</span><span class="mini-price">${price(p.price)}</span>
+      </button></li>`;
+    }).join("");
+  }
+  $("#recent-row").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) openProduct(b.dataset.id, b.dataset.colour); });
+  $("#recent-clear").addEventListener("click", () => {
+    recent = [];
+    writeList(RECENT_KEY, recent);
+    renderRecent();
+    announce("Cleared recently viewed.");
+    $("#shop-title").setAttribute("tabindex", "-1");
+    $("#shop-title").focus();
+  });
+
+  // ---- Search ----------------------------------------------------------------
+  const searchDlg = $("#search"), searchIn = $("#search-in"), searchList = $("#search-list");
+  const SECTIONS = [
+    { label: "Lookbook", href: "#lookbook", words: "lookbook looks photos model fit check" },
+    { label: "The fit", href: "#fit", words: "fit outfit full broadcast flat lay" },
+    { label: "Drop 02 countdown", href: "#drop-02", words: "drop 02 next countdown interference alert notify" },
+    { label: "Delivery and returns", href: "#delivery", words: "delivery shipping postage returns refund royal mail" },
+    { label: "About PLUGE", href: "#about", words: "about brand story pluge" },
+  ];
+  const searchIndex = PRODUCTS.map(p => ({
+    p,
+    name: norm(p.name),
+    text: norm([p.name, CATS.find(c => c.id === p.cat).label, p.tags || "", p.blurb, p.fabric, p.deco, p.sizes.join(" ")].join(" ")),
+  }));
+  const startsWord = (text, t) => new RegExp(`(^|[^a-z0-9])${reEsc(t)}`).test(text);
+  function runSearch(q) {
+    const terms = norm(q).split(/[\s,]+/).filter(Boolean);
+    const firstIn = p => p.colours.find(k => !colourOut(p, k)) || p.colours[0];
+    if (!terms.length) return [...PRODUCTS.map(p => ({ kind: "p", p, colour: firstIn(p) })), ...SECTIONS.map(x => ({ kind: "s", ...x }))];
+    const hits = [];
+    for (const it of searchIndex) {
+      let score = 0, colour = null;
+      const ok = terms.every(t => {
+        const c = it.p.colours.find(k => startsWord(norm(COLOURS[k].name), t));
+        if (c) { colour = colour || c; score += 3; return true; }
+        if (startsWord(it.name, t)) { score += 5; return true; }
+        if (startsWord(it.text, t)) { score += 2; return true; }
+        if (t.length > 2 && it.text.includes(t)) { score += 1; return true; }
+        return false;
+      });
+      if (ok) hits.push({ kind: "p", p: it.p, colour: colour || firstIn(it.p), score });
+    }
+    hits.sort((a, b) => b.score - a.score);
+    const secs = SECTIONS.filter(x => terms.every(t => startsWord(norm(`${x.label} ${x.words}`), t))).map(x => ({ kind: "s", ...x }));
+    return [...hits, ...secs];
+  }
+  function marked(text, q) {
+    const terms = norm(q).split(/\s+/).filter(Boolean);
+    if (!terms.length) return esc(text);
+    const re = new RegExp(`(^|\\s)(${terms.map(reEsc).join("|")})`, "gi");
+    return esc(text).replace(re, "$1<mark>$2</mark>");
+  }
+  let results = [], active = -1;
+  function renderSearch() {
+    const q = searchIn.value.trim();
+    results = runSearch(q);
+    searchList.innerHTML = results.map((r, i) => r.kind === "p"
+      ? `<li class="opt" role="option" id="opt-${i}" data-i="${i}" aria-selected="false">
+          <span class="opt-img">${art(r.p, r.colour, "front", { sizes: "56px" })}</span>
+          <span class="opt-main"><span class="opt-name">${marked(r.p.name, q)}</span>
+          <span class="opt-meta">${esc(COLOURS[r.colour].name)}${r.p.colours.length > 1 ? ` + ${r.p.colours.length - 1} more` : ""} · ${esc(CATS.find(c => c.id === r.p.cat).label)}</span></span>
+          <span class="opt-price">${price(r.p.price)}</span></li>`
+      : `<li class="opt opt-section" role="option" id="opt-${i}" data-i="${i}" aria-selected="false">
+          <span class="opt-img" aria-hidden="true">→</span>
+          <span class="opt-main"><span class="opt-name">${esc(r.label)}</span><span class="opt-meta">Go to section</span></span></li>`).join("");
+    const empty = $("#search-empty");
+    empty.hidden = results.length > 0;
+    if (!results.length) empty.textContent = `Nothing matches "${q}". Try "hoodie", "olive" or "XL".`;
+    $("#search-status").textContent = q ? (results.length ? `${results.length} ${results.length === 1 ? "result" : "results"}` : "No results") : "";
+    setActive(results.length ? 0 : -1, false);
+  }
+  function setActive(i, scroll = true) {
+    const prev = searchList.querySelector('[aria-selected="true"]');
+    if (prev) prev.setAttribute("aria-selected", "false");
+    active = i;
+    const el = i >= 0 ? $(`#opt-${i}`) : null;
+    if (!el) { searchIn.removeAttribute("aria-activedescendant"); return; }
+    el.setAttribute("aria-selected", "true");
+    searchIn.setAttribute("aria-activedescendant", el.id);
+    if (scroll) el.scrollIntoView({ block: "nearest" });
+  }
+  function choose(r) {
+    searchDlg.close();
+    if (r.kind === "p") { openProduct(r.p.id, r.colour); return; }
+    const target = $(r.href);
+    target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    const h = target.querySelector("h2, h3");
+    if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+  }
+  function openSearch() {
+    searchIn.value = "";
+    renderSearch();
+    if (!searchDlg.open) searchDlg.showModal();
+    searchIn.focus();
+  }
+  searchIn.addEventListener("input", renderSearch);
+  searchIn.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (results.length) setActive((active + (e.key === "ArrowDown" ? 1 : -1) + results.length) % results.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (active >= 0) choose(results[active]);
+    }
+  });
+  searchList.addEventListener("click", e => { const o = e.target.closest("[data-i]"); if (o) choose(results[+o.dataset.i]); });
+  searchList.addEventListener("pointermove", e => { const o = e.target.closest("[data-i]"); if (o && +o.dataset.i !== active) setActive(+o.dataset.i, false); });
+  $("#search-open").addEventListener("click", openSearch);
+  $("#search-close").addEventListener("click", () => searchDlg.close());
+  // "/" or Ctrl+K (Cmd+K on a Mac) opens search from anywhere.
+  document.addEventListener("keydown", e => {
+    const typing = e.target.closest && e.target.closest("input, textarea, select, [contenteditable]");
+    if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey) && !e.altKey) { e.preventDefault(); openSearch(); return; }
+    if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector("dialog[open]")) { e.preventDefault(); openSearch(); }
+  });
+
+  [pd, bagDlg, kit, savedDlg, searchDlg].forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+
+  // ---- Product links: the sheet's address is p/<id>/, so it can be shared and Back closes it ----
+  const productUrl = (id, colour) => `${ROOT}p/${id}/${colour && colour !== byId[id].colours[0] ? `?colour=${colour}` : ""}`;
+  function syncUrl(push) {
+    document.title = `${sel.p.name} · ${BRAND}`;
+    if (!ROUTING) return;
+    const state = { pd: sel.p.id, colour: sel.colour };
+    try {
+      if (push && !(history.state && history.state.pd)) history.pushState(state, "", productUrl(sel.p.id, sel.colour));
+      else history.replaceState(state, "", productUrl(sel.p.id, sel.colour));
+    } catch { /* the address just doesn't change */ }
+  }
+  pd.addEventListener("close", () => {
+    document.title = HOME_TITLE;
+    renderRecent();
+    if (ROUTING && history.state && history.state.pd) history.back();
+  });
+  window.addEventListener("popstate", e => {
+    const st = e.state;
+    if (st && st.pd && byId[st.pd]) openProduct(st.pd, st.colour, { push: false });
+    else if (pd.open) pd.close();
+  });
 
   const toast = $("#toast");
   let toastT;
-  function showToast(text) {
+  function showToast(text, { bagLink = true } = {}) {
     $("#toast-msg").textContent = text;
+    $("#toast-view").hidden = !bagLink;
     toast.hidden = false;
     toast.classList.remove("show");
     void toast.offsetWidth;
@@ -992,8 +1535,33 @@
   setRotating(rotating);
   renderChips();
   renderGrid(false);
+  renderLooks();
+  renderRecent();
   renderBag();
+  syncSavedButtons();
   updateFit();
   if (!still) $("#hero-title").classList.add("play");
   requestAnimationFrame(frame);
+
+  // Shopify's order status page can link back with ?ordered=1, which empties the bag after a purchase.
+  if (new URLSearchParams(location.search).has("ordered") && !root.dataset.product) {
+    bag = [];
+    saveBag();
+    renderBag();
+    showToast("Thanks for your order. We've emptied your bag.", { bagLink: false });
+    if (ROUTING) { try { history.replaceState(null, "", ROOT); } catch { /* the address keeps ?ordered=1 */ } }
+  }
+
+  // A product page (p/<id>/) is the shop with that product's sheet open. Its address is swapped for
+  // the shop's underneath the sheet, so Back closes the sheet instead of leaving the site.
+  const startId = root.dataset.product;
+  if (startId && byId[startId]) {
+    const st = history.state;
+    if (st && st.pd === startId) openProduct(startId, st.colour, { push: false });
+    else {
+      const colour = new URLSearchParams(location.search).get("colour");
+      if (ROUTING) { try { history.replaceState(null, "", ROOT); } catch { /* stay on the product address */ } }
+      openProduct(startId, colour);
+    }
+  }
 })();
