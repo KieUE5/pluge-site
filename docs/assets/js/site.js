@@ -1953,7 +1953,7 @@
   }
   function choose(r) {
     searchDlg.close();
-    if (r.kind === "p") { location.href = pageUrl(r.p.id, r.colour); return; }
+    if (r.kind === "p") { if (!ROUTING && pd) openProduct(r.p.id, r.colour); else location.href = pageUrl(r.p.id, r.colour); return; }
     const target = r.href[0] === "#" && $(r.href);
     if (!target) { location.href = ROOT + r.href; return; }
     target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
@@ -1985,6 +1985,17 @@
     const typing = e.target.closest && e.target.closest("input, textarea, select, [contenteditable]");
     if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey) && !e.altKey) { e.preventDefault(); openSearch(); return; }
     if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector("dialog[open]")) { e.preventDefault(); openSearch(); }
+  });
+
+  // In an embedded preview or a copy opened from disk, the product pages' folders can't load, so on the
+  // home page a link to a product opens its quick view instead.
+  if (!ROUTING && pd) document.addEventListener("click", e => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    const m = a && a.href.startsWith(`${ROOT}p/`) && a.href.slice(ROOT.length).match(/^p\/([a-z0-9-]+)\/(?:\?colour=([a-z]+))?$/);
+    if (!m || !byId[m[1]] || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    [searchDlg, savedDlg, kit, menuDlg].forEach(d => { if (d.open) d.close(); });
+    openProduct(m[1], m[2]);
   });
 
   // ---- Menu (phones and small tablets) ------------------------------------------
