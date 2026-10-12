@@ -12,6 +12,7 @@ on:
       - docs/assets/js/catalog.js
       - tools/build-pages.cjs
       - tools/policies.cjs
+      - tools/pages.cjs
   workflow_dispatch:
 
 permissions:

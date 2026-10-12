@@ -8,17 +8,32 @@ window.PLUGE = (() => {
   // After changing it (for example to your own domain), run: node tools/build-pages.cjs
   const SITE_URL = "https://kieue5.github.io/pluge-site/";
 
-  // Your business details. UK law requires them on any website that sells. They fill in the footer
-  // and the terms, returns and privacy pages; anything left empty shows as [square brackets].
+  // Your business details. UK law says a sole trader who sells online under a brand name must show their
+  // own name, a postal address where documents can reach them, and an email address. They fill in the
+  // footer and the terms, returns, privacy and contact pages; anything left empty shows as [square brackets].
+  // The address doesn't have to be your home: a virtual business address works (not a PO box).
   // After changing them, the pages are rebuilt automatically when you push (see README).
   const COMPANY = {
-    legalName: "",       // your company's registered name, e.g. "Pluge Clothing Ltd"
-    companyNumber: "",   // from Companies House
-    office: "",          // registered office address, on one line
-    returnsAddress: "",  // where returns go, if it isn't the registered office
+    traderName: "",      // your full name, e.g. "Alex Smith". PLUGE is your trading name.
+    address: "",         // business postal address on one line, e.g. a virtual office address
+    returnsAddress: "",  // where returns go, if it isn't the address above
     vat: "",             // e.g. "GB 123 4567 89"; leave empty if you aren't VAT registered
     email: "pluge.shop@outlook.com", // customer service email
     phone: "",           // optional
+  };
+
+  // Social accounts, shown in the footer and the menu. Just the handle, without the @.
+  // While a handle is empty, its link shows as "coming soon".
+  const SOCIAL = {
+    instagram: "",  // e.g. "pluge.shop" for instagram.com/pluge.shop
+    tiktok: "",     // e.g. "pluge.shop" for tiktok.com/@pluge.shop
+  };
+
+  // Contact form. With formEndpoint empty, the form opens the shopper's email app with their message
+  // filled in, addressed to COMPANY.email. To get messages without that step, make a free form at
+  // formspree.io (sign up with the shop email) and paste its address here.
+  const CONTACT = {
+    formEndpoint: "",  // e.g. "https://formspree.io/f/abcdwxyz"
   };
 
   // Customer accounts: sign in, the same bag and saved pieces on every device, and order history.
@@ -199,31 +214,32 @@ window.PLUGE = (() => {
   // (tools/build-lookbook.cjs makes them). "pieces" are [product id, colour]. "pos" is the part of a
   // wide photo to keep when it's cropped to portrait. "model" is the model's height and the size they
   // wear in each piece; product pages show it next to the on-model photo. Only pieces we sell are listed;
-  // the cargo trousers in some photos are styling.
+  // the cargo trousers in some photos are styling. "hero: true" marks the home page's opening photo
+  // (also cut to portrait for phones as hero-tall), which the lookbook grid then leaves out.
   // These are AI-generated preview images. Reshoot with real models before launch and use their real
   // heights and sizes.
   const LOOKS = [
-    { n: "01", img: "look-01", w: 1536, h: 1024, pos: "51% 50%", title: "Test card wall",
-      alt: "Seen from behind, a model in the black Test Card Hoodie faces a wall of old TVs showing colour bars, the same bars printed across the hoodie's back. Olive Static Cargo Pants.",
+    { n: "01", img: "look-01", w: 1536, h: 1024, pos: "51% 50%", title: "Test card wall", hero: true,
+      alt: "Seen from behind, a model in the black Test Card Hoodie faces a wall of old TVs showing colour bars, the same bars printed across the hoodie's back. Olive cargo trousers.",
       pieces: [["test-card-hoodie", "black"]] },
     { n: "02", img: "look-04", w: 960, h: 1280, title: "Off air",
       alt: "Close-up of a model lit by a TV full of static, wearing the black Interference Beanie with its woven colour-bar label.",
       pieces: [["interference-beanie", "black"]] },
     { n: "03", img: "look-02", w: 960, h: 1280, title: "Control room",
-      alt: "A model stands in a TV control room in the white Colour Bars Tee, black Static Cargo Pants and the black Broadcast Cap.",
+      alt: "A model stands in a TV control room in the white Colour Bars Tee, black cargo trousers and the black Broadcast Cap.",
       pieces: [["colour-bars-tee", "white"], ["broadcast-cap", "black"]] },
     { n: "04", img: "look-03", w: 960, h: 1280, title: "After dark",
-      alt: "Two friends laughing on a rooftop at night above the London skyline. One wears the Channel 00 Crewneck in Ash, the other the Off Air Tee in Signal Blue, both with black Static Cargo Pants.",
+      alt: "Two friends laughing on a rooftop at night above the London skyline. One wears the Channel 00 Crewneck in Ash, the other a blue tee, both in black cargo trousers.",
       pieces: [["channel-00-crew", "ash"]] },
     { n: "05", img: "fit-01", w: 960, h: 1280, title: "Fit check: hoodie", fitCheck: true,
-      alt: "Studio fit photo of a 185cm model in the black Test Card Hoodie, size L, and olive Static Cargo Pants, size 32.",
+      alt: "Studio fit photo of a 185cm model in the black Test Card Hoodie, size L, and olive cargo trousers.",
       model: { height: 185, wears: { "test-card-hoodie": "L" } },
       pieces: [["test-card-hoodie", "black"]] },
     { n: "06", img: "fit-02", w: 960, h: 1280, title: "Fit check: tee", fitCheck: true,
-      alt: "Studio fit photo of a 170cm model in the black Off Air Tee, size S, and black Static Cargo Pants, size 28.",
+      alt: "Studio fit photo of a 170cm model in the black Off Air Tee, size S, and black cargo trousers.",
       model: { height: 170, wears: { "off-air-tee": "S" } },
       pieces: [["off-air-tee", "black"]] },
   ];
 
-  return { BRAND, SITE_URL, COMPANY, ACCOUNTS, CHECKOUT, DROP_02, SHIP, BANK_HOLIDAYS, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS };
+  return { BRAND, SITE_URL, COMPANY, SOCIAL, CONTACT, ACCOUNTS, CHECKOUT, DROP_02, SHIP, BANK_HOLIDAYS, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS };
 })();

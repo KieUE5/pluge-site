@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const { BRAND, SHIP, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS, CHECKOUT, ACCOUNTS } = window.PLUGE;
+  const { BRAND, SHIP, COLOURS, CATS, GUIDES, CARE, PRODUCTS, CHANNELS, FIT, DROP_02_PIECES, LOOKS, CHECKOUT, ACCOUNTS, COMPANY, CONTACT } = window.PLUGE;
   const DROP_02 = new Date(window.PLUGE.DROP_02);
   const BANK_HOLIDAYS = new Set(window.PLUGE.BANK_HOLIDAYS);
   const BAG_KEY = "pluge-bag-v1";
@@ -23,10 +23,17 @@
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const root = document.documentElement;
-  // Each product also has its own page at p/<id>/, and the address changes as the product sheet opens,
-  // so every asset address is built from the site root rather than from the current address.
+  // Every page (home, p/<id>/, about/, faq/...) shares this script. The quick view pop-up changes the
+  // address to the product's page while it's open, so every address is built from the site root.
   const ROOT = new URL(".", document.baseURI).href;
-  const HOME_TITLE = root.dataset.homeTitle || document.title;
+  const HOME_TITLE = document.title;
+  const IS_HOME = !!document.getElementById("grid");
+  const pageUrl = (id, colour) => `${ROOT}p/${id}/${colour && colour !== byId[id].colours[0] ? `?colour=${colour}` : ""}`;
+  // Scroll to the shop on the home page, or go there from any other page.
+  function goShop() {
+    if (IS_HOME) $("#shop").scrollIntoView({ behavior: still ? "auto" : "smooth" });
+    else location.href = `${ROOT}#shop`;
+  }
   // Change the address bar only on the real site, not in an embedded preview or a file opened from disk.
   const ROUTING = window.self === window.top && /^https?:$/.test(location.protocol);
   // Account state, used by the bag, saved and recently viewed code to save changes to the account.
@@ -76,6 +83,7 @@
     try { localStorage.setItem(key, JSON.stringify(list)); } catch { /* storage unavailable; kept for this visit */ }
   }
   const validPick = v => v && byId[v.id] && byId[v.id].colours.includes(v.colour);
+  const firstIn = p => p.colours.find(k => !colourOut(p, k)) || p.colours[0];
 
   // Warm the cache before swapping an image in, so the swap never shows a blank frame.
   function preload(src, timeout = 1500) {
@@ -152,20 +160,23 @@
     <div class="bars-low">${["#00214C", "#F5F5F5", "#32006A", "#101010", "#060606", "#101010", "#1C1C1C", "#101010"].map(c => `<i style="background:${c}"></i>`).join("")}</div>
   </div><span class="osd-main" aria-hidden="true">${esc(BRAND)}</span>`;
 
+  // The TV sits beside the brand story on the home page only.
+  const tv = $("#tv");
   const channelEl = $("#channel");
   const staticCv = $("#static");
   const playBtn = $("#ch-play");
   let chIndex = 0, chBusy = false, chElapsed = 0;
   // Auto-rotation: on by default on larger screens, off on phones and when motion is off.
-  let rotating = !still && !narrowScreen;
+  let rotating = !!tv && !still && !narrowScreen;
 
-  $("#pips").innerHTML = CHANNELS.map((c, i) => {
+  if (tv) $("#pips").innerHTML = CHANNELS.map((c, i) => {
     const what = c.kind === "bars" ? "colour bars" : byId[c.id].name;
     return `<button class="pip" type="button" data-ch="${i}" aria-pressed="false" aria-label="Channel ${c.n}: ${esc(what)}"><span aria-hidden="true">${c.n}</span><span class="pip-bar" aria-hidden="true"><i></i></span></button>`;
   }).join("");
   const pips = [...document.querySelectorAll("#pips .pip")];
 
   function setRotating(on) {
+    if (!tv) return;
     rotating = on && !still;
     chElapsed = 0;
     playBtn.dataset.state = rotating ? "playing" : "stopped";
@@ -218,95 +229,83 @@
   // Choosing a channel yourself stops the rotation, so it never jumps away from what you picked.
   const pick = i => { setRotating(false); tune(i); };
 
-  playBtn.addEventListener("click", () => setRotating(!rotating));
-  $("#pips").addEventListener("click", e => { const b = e.target.closest("[data-ch]"); if (b) pick(+b.dataset.ch); });
-  $("#ch-prev").addEventListener("click", () => pick(chIndex - 1));
-  $("#ch-next").addEventListener("click", () => pick(chIndex + 1));
+  let tvHover = false, tvFocus = false, tvVisible = true, swipe = null, swiped = false;
+  if (tv) {
+    playBtn.addEventListener("click", () => setRotating(!rotating));
+    $("#pips").addEventListener("click", e => { const b = e.target.closest("[data-ch]"); if (b) pick(+b.dataset.ch); });
+    $("#ch-prev").addEventListener("click", () => pick(chIndex - 1));
+    $("#ch-next").addEventListener("click", () => pick(chIndex + 1));
 
-  const screenHit = $("#screen-hit");
-  let swipe = null, swiped = false;
-  screenHit.addEventListener("pointerdown", e => { swipe = { x: e.clientX, y: e.clientY }; swiped = false; });
-  screenHit.addEventListener("pointerup", e => {
-    if (!swipe) return;
-    const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-    swipe = null;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.4) { swiped = true; pick(chIndex + (dx < 0 ? 1 : -1)); }
-  });
-  screenHit.addEventListener("click", () => {
-    if (swiped) { swiped = false; return; }
-    const ch = CHANNELS[chIndex];
-    if (ch.kind === "bars") $("#shop").scrollIntoView({ behavior: still ? "auto" : "smooth" });
-    else openProduct(ch.id, ch.colour);
-  });
+    const screenHit = $("#screen-hit");
+    screenHit.addEventListener("pointerdown", e => { swipe = { x: e.clientX, y: e.clientY }; swiped = false; });
+    screenHit.addEventListener("pointerup", e => {
+      if (!swipe) return;
+      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+      swipe = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.4) { swiped = true; pick(chIndex + (dx < 0 ? 1 : -1)); }
+    });
+    screenHit.addEventListener("click", () => {
+      if (swiped) { swiped = false; return; }
+      const ch = CHANNELS[chIndex];
+      if (ch.kind === "bars") goShop();
+      else openProduct(ch.id, ch.colour);
+    });
 
-  const tv = $("#tv");
-  let tvHover = false, tvFocus = false, tvVisible = true;
-  tv.addEventListener("pointerenter", () => { tvHover = true; });
-  tv.addEventListener("pointerleave", () => { tvHover = false; });
-  tv.addEventListener("focusin", () => { tvFocus = true; });
-  tv.addEventListener("focusout", e => { if (!tv.contains(e.relatedTarget)) tvFocus = false; });
-
-  // ---- Velocity marquee ------------------------------------------------------
-  const MQ_WORDS = [[BRAND, ""], ["Test pattern", "outline"], ["Drop 01", ""], ["Made to order", "outline"], ["Garment-dyed", ""], ["Relaxed fit", "outline"]];
-  const glyph = `<span class="mq-glyph"></span>`;
-  const mqGroup = words => words.map(([t, cls]) => `<span class="mq-item ${cls}">${esc(t)}${glyph}</span>`).join("");
-  const mqA = $("#mq-a"), mqB = $("#mq-b");
-  const mq = { a: 0, b: 0, wa: 1, wb: 1, vel: 0, visible: false };
-  function buildMarquee() {
-    const reps = Math.max(2, Math.ceil(window.innerWidth / 1400) + 1);
-    const ga = mqGroup(MQ_WORDS).repeat(reps);
-    const gb = mqGroup([...MQ_WORDS].reverse().map(([t, c]) => [t, c ? "" : "outline"])).repeat(reps);
-    mqA.innerHTML = ga + ga;
-    mqB.innerHTML = gb + gb;
-    mq.wa = mqA.scrollWidth / 2 || 1;
-    mq.wb = mqB.scrollWidth / 2 || 1;
+    tv.addEventListener("pointerenter", () => { tvHover = true; });
+    tv.addEventListener("pointerleave", () => { tvHover = false; });
+    tv.addEventListener("focusin", () => { tvFocus = true; });
+    tv.addEventListener("focusout", e => { if (!tv.contains(e.relatedTarget)) tvFocus = false; });
   }
-  buildMarquee();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(buildMarquee);
+
   let resizeT;
-  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { buildMarquee(); fitDirty = true; }, 150); });
+  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { fitDirty = true; }, 150); });
 
   // ---- Grid ----------------------------------------------------------------
   let filter = "all", sizeFilter = "", sortBy = "featured";
   const grid = $("#grid");
   const CARD_SIZES = "(max-width: 720px) 46vw, (max-width: 1000px) 31vw, 310px";
 
+  const catCount = id => id === "all" ? PRODUCTS.length : PRODUCTS.filter(p => p.cat === id).length;
+  const catUrl = id => `${ROOT}${id === "all" ? "" : `?cat=${id}`}#shop`;
   function renderChips() {
-    $("#chips").innerHTML = CATS.map(c => {
-      const n = c.id === "all" ? PRODUCTS.length : PRODUCTS.filter(p => p.cat === c.id).length;
-      return `<button class="chip" type="button" data-cat="${c.id}" aria-pressed="${c.id === filter}">${esc(c.label)}<span class="n">${n}</span></button>`;
-    }).join("");
-    $("#foot-cats").innerHTML = CATS.filter(c => c.id !== "all")
-      .map(c => `<li><button class="link-btn" type="button" data-cat="${c.id}">${esc(c.label)}</button></li>`).join("");
+    if (grid) $("#chips").innerHTML = CATS.map(c =>
+      `<button class="chip" type="button" data-cat="${c.id}" aria-pressed="${c.id === filter}">${esc(c.label)}<span class="n">${catCount(c.id)}</span></button>`).join("");
+    // The footer and menu link to each category, so they work from any page.
+    $("#foot-cats").innerHTML = CATS.map(c => `<li><a href="${catUrl(c.id)}" data-cat="${c.id}">${c.id === "all" ? "Shop all" : esc(c.label)}</a></li>`).join("");
+    $("#menu-cats").innerHTML = CATS.map(c => `<li><a href="${catUrl(c.id)}" data-cat="${c.id}">${c.id === "all" ? "Shop all" : esc(c.label)}</a></li>`).join("");
+  }
+
+  // A product card: a link to the product's page, with save and quick view buttons over the photo.
+  function cardHtml(p, key, sizes) {
+    const allOut = p.colours.every(k => colourOut(p, k));
+    const badge = allOut ? `<span class="badge out">Sold out</span>`
+      : p.badge ? `<span class="badge${p.badge === "Low stock" ? " low" : ""}">${esc(p.badge)}</span>` : "";
+    const back = hasBack(p);
+    const dots = p.colours.map(k => `<span class="dot" style="background:${swatchBg(k)}"></span>`).join("");
+    return `<li><a class="card" href="${pageUrl(p.id, key)}" data-id="${p.id}" data-colour="${key}">
+        <span class="tilt"><span class="card-media">${badge}
+          <span class="flip${back ? " has-back" : ""}">
+            <span class="face front">${art(p, key, "front", { sizes })}</span>${back ? `<span class="face back">${art(p, key, "back", { sizes })}</span>` : ""}
+          </span>
+          <span class="glare"></span>${back ? `<span class="turn-hint" aria-hidden="true">Back</span>` : ""}
+        </span></span>
+        <span class="card-row"><span class="card-name">${esc(p.name)}</span><span class="card-price">${price(p.price)}</span></span>
+        <span class="card-meta">${dots}${p.colours.length} ${p.colours.length === 1 ? "colour" : "colours"}</span>
+      </a><div class="card-tools"><button class="save-tog" type="button" data-id="${p.id}" data-colour="${key}" aria-pressed="${isSaved(p.id)}" aria-label="Save ${esc(p.name)}">${HEART}</button>` +
+      (pd ? `<button class="qv" type="button" data-id="${p.id}" data-colour="${key}" aria-haspopup="dialog">Quick view<span class="vh">: ${esc(p.name)}</span></button>` : "") + `</div></li>`;
   }
 
   // A size filter only keeps pieces that still have that size in at least one colour.
   const inSize = (p, size) => !size || (p.sizes.includes(size) && p.colours.some(k => !isOut(p, k, size)));
 
   function renderGrid(animate) {
+    if (!grid) return;
     let list = PRODUCTS.filter(p => (filter === "all" || p.cat === filter) && inSize(p, sizeFilter));
     if (sortBy === "low") list = [...list].sort((a, b) => a.price - b.price);
     if (sortBy === "high") list = [...list].sort((a, b) => b.price - a.price);
     $("#result-count").textContent = `${list.length} ${list.length === 1 ? "piece" : "pieces"}${sizeFilter ? ` in ${sizeFilter}` : ""}`;
     $("#grid-empty").hidden = list.length > 0;
-    grid.innerHTML = list.map(p => {
-      const key = sizeFilter ? (p.colours.find(k => !isOut(p, k, sizeFilter)) || p.colours[0]) : p.colours[0];
-      const allOut = p.colours.every(k => colourOut(p, k));
-      const badge = allOut ? `<span class="badge out">Sold out</span>`
-        : p.badge ? `<span class="badge${p.badge === "Low stock" ? " low" : ""}">${esc(p.badge)}</span>` : "";
-      const back = hasBack(p);
-      const dots = p.colours.map(k => `<span class="dot" style="background:${swatchBg(k)}"></span>`).join("");
-      return `<li><button class="card" type="button" data-id="${p.id}" data-colour="${key}" aria-haspopup="dialog">
-        <span class="tilt"><span class="card-media">${badge}
-          <span class="flip${back ? " has-back" : ""}">
-            <span class="face front">${art(p, key, "front", { sizes: CARD_SIZES })}</span>${back ? `<span class="face back">${art(p, key, "back", { sizes: CARD_SIZES })}</span>` : ""}
-          </span>
-          <span class="glare"></span>${back ? `<span class="turn-hint" aria-hidden="true">Back</span>` : ""}
-        </span></span>
-        <span class="card-row"><span class="card-name">${esc(p.name)}</span><span class="card-price">${price(p.price)}</span></span>
-        <span class="card-meta">${dots}${p.colours.length} ${p.colours.length === 1 ? "colour" : "colours"}</span>
-      </button><button class="save-tog" type="button" data-id="${p.id}" data-colour="${key}" aria-pressed="${isSaved(p.id)}" aria-label="Save ${esc(p.name)}">${HEART}</button></li>`;
-    }).join("");
+    grid.innerHTML = list.map(p => cardHtml(p, sizeFilter ? (p.colours.find(k => !isOut(p, k, sizeFilter)) || p.colours[0]) : p.colours[0], CARD_SIZES)).join("");
     if (animate && !still) { grid.classList.remove("swap"); void grid.offsetWidth; grid.classList.add("swap"); }
     if (finePointer) grid.querySelectorAll(".card").forEach(bindTilt);
   }
@@ -331,43 +330,54 @@
   }
 
   function setFilter(cat) {
-    if (cat === filter) return;
+    if (cat === filter || !CATS.some(c => c.id === cat)) return;
     filter = cat;
     document.querySelectorAll("#chips .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cat === cat)));
     renderGrid(true);
   }
 
-  $("#chips").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (b) setFilter(b.dataset.cat); });
-  $("#foot-cats").addEventListener("click", e => {
-    const b = e.target.closest("[data-cat]");
-    if (!b) return;
-    setFilter(b.dataset.cat);
-    $("#shop").scrollIntoView({ behavior: still ? "auto" : "smooth" });
-  });
-  $("#size-filter").addEventListener("change", e => { sizeFilter = e.target.value; renderGrid(true); });
-  $("#sort").addEventListener("change", e => { sortBy = e.target.value; renderGrid(true); });
-  $("#clear-filters").addEventListener("click", () => {
-    sizeFilter = "";
-    $("#size-filter").value = "";
-    filter = "all";
-    document.querySelectorAll("#chips .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cat === "all")));
-    renderGrid(true);
-    $("#size-filter").focus();
-  });
-  grid.addEventListener("click", e => {
-    const save = e.target.closest(".save-tog");
-    if (save) { toggleSaved(save.dataset.id, save.dataset.colour); return; }
-    const card = e.target.closest(".card");
-    if (card) openProduct(card.dataset.id, card.dataset.colour);
-  });
+  // On the home page, category links filter the grid in place instead of reloading.
+  const catLink = e => {
+    const a = e.target.closest("[data-cat]");
+    if (!a || !grid || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    if (menuDlg.open) menuDlg.close();
+    setFilter(a.dataset.cat);
+    goShop();
+  };
+  $("#foot-cats").addEventListener("click", catLink);
+  $("#menu-cats").addEventListener("click", catLink);
+  if (grid) {
+    $("#chips").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (b) setFilter(b.dataset.cat); });
+    $("#size-filter").addEventListener("change", e => { sizeFilter = e.target.value; renderGrid(true); });
+    $("#sort").addEventListener("change", e => { sortBy = e.target.value; renderGrid(true); });
+    $("#clear-filters").addEventListener("click", () => {
+      sizeFilter = "";
+      $("#size-filter").value = "";
+      filter = "all";
+      document.querySelectorAll("#chips .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cat === "all")));
+      renderGrid(true);
+      $("#size-filter").focus();
+    });
+    grid.addEventListener("click", e => {
+      const save = e.target.closest(".save-tog");
+      if (save) { toggleSaved(save.dataset.id, save.dataset.colour); return; }
+      const qv = e.target.closest(".qv");
+      if (qv) openProduct(qv.dataset.id, qv.dataset.colour);
+    });
+    // ?cat=tees (from the footer or menu on another page) opens the shop on that category.
+    const startCat = new URLSearchParams(location.search).get("cat");
+    if (startCat && CATS.some(c => c.id === startCat)) filter = startCat;
+  }
 
   // ---- Build the fit (scroll-scrubbed flat lay) -----------------------------
   const fitStage = $("#fit-stage"), fitSec = $("#fit");
-  fitStage.insertAdjacentHTML("beforeend", FIT.map(f =>
+  if (fitStage) fitStage.insertAdjacentHTML("beforeend", FIT.map(f =>
     `<button class="piece" type="button" tabindex="-1" aria-hidden="true" data-id="${f.id}" data-colour="${f.colour}" style="--w:${f.w}%;left:${f.x}%;top:${f.y}%;z-index:${f.z}">${art(byId[f.id], f.colour, "front", { sizes: "(max-width: 860px) 50vw, 30vw" })}</button>`).join(""));
-  const pieces = [...fitStage.querySelectorAll(".piece")];
+  const pieces = fitStage ? [...fitStage.querySelectorAll(".piece")] : [];
   let fitItems = [];
   function renderFitList() {
+    if (!fitStage) return;
     $("#fit-list").innerHTML = FIT.map(f => {
       const p = byId[f.id];
       return `<li><button type="button" data-id="${f.id}" data-colour="${f.colour}"><span class="k">${f.k}</span><span class="nm">${esc(p.name)}</span><span class="pr">${price(p.price)}</span></button></li>`;
@@ -382,6 +392,7 @@
   const easeOutBack = t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
   function updateFit() {
+    if (!fitStage) return;
     const r = fitSec.getBoundingClientRect();
     const span = r.height - window.innerHeight;
     const prog = still || span <= 0 ? 1 : clamp(-r.top / span, 0, 1);
@@ -405,19 +416,23 @@
     }
   }
   const openFromFit = e => { const b = e.target.closest("[data-id]"); if (b) openProduct(b.dataset.id, b.dataset.colour); };
-  fitStage.addEventListener("click", openFromFit);
-  $("#fit-list").addEventListener("click", openFromFit);
-  $("#fit-shop").addEventListener("click", () => openKit({ title: "Full broadcast", items: FIT.map(f => [f.id, f.colour]) }));
+  if (fitStage) {
+    fitStage.addEventListener("click", openFromFit);
+    $("#fit-list").addEventListener("click", openFromFit);
+    $("#fit-shop").addEventListener("click", () => openKit({ title: "Full broadcast", items: FIT.map(f => [f.id, f.colour]) }));
+  }
 
   // ---- Lookbook --------------------------------------------------------------
   const lookTotal = look => look.pieces.reduce((sum, [id]) => sum + byId[id].price, 0);
   function renderLooks() {
+    if (!$("#looks")) return;
     $("#looks").innerHTML = LOOKS.map((look, i) => {
+      if (look.hero) return "";
       const wide = look.w > look.h, m = look.model;
       const wears = m ? look.pieces.filter(([id]) => m.wears[id]).map(([id]) => `${byId[id].short} ${m.wears[id]}`).join(" · ") : "";
       return `<figure class="look${wide ? " look-wide" : ""}" style="--ar:${look.w}/${look.h}">
         <div class="look-frame" data-look="${i}">
-          ${lookImg(look, { sizes: wide ? "(max-width: 720px) 160vw, (max-width: 1320px) 64vw, 860px" : "(max-width: 720px) 80vw, (max-width: 1320px) 40vw, 540px" })}
+          ${lookImg(look, { sizes: wide ? "(max-width: 720px) 160vw, (max-width: 1320px) 64vw, 860px" : "(max-width: 720px) 80vw, (max-width: 1000px) 48vw, (max-width: 1320px) 32vw, 430px" })}
           <span class="look-osd" aria-hidden="true">Look ${look.n}</span>
           <span class="look-rec" aria-hidden="true"><i></i>${look.fitCheck ? "Studio" : "Location"}</span>
           <span class="look-cta" aria-hidden="true">Shop the look</span>
@@ -447,7 +462,7 @@
       intro: `<div class="kit-look">${lookImg(look, { sizes: "96px", alt: "" })}<p><b>${esc(look.title)}</b><span>${look.pieces.length} ${look.pieces.length === 1 ? "piece" : "pieces"}${look.model ? `, model is ${look.model.height}cm` : ""}</span></p></div>`,
     });
   }
-  $("#looks").addEventListener("click", e => { const b = e.target.closest("[data-look]"); if (b) shopLook(+b.dataset.look); });
+  if ($("#looks")) $("#looks").addEventListener("click", e => { const b = e.target.closest("[data-look]"); if (b) shopLook(+b.dataset.look); });
 
   // ---- Shop the look: every piece of a look (or the fit) with a size for each --
   const kit = $("#kit");
@@ -507,7 +522,7 @@
     const b = e.target.closest("[data-act]");
     if (!b) return;
     const i = +b.dataset.i, it = kitItems[i];
-    if (b.dataset.act === "details") { kit.close(); openProduct(it.p.id, it.colour); return; }
+    if (b.dataset.act === "details") { kit.close(); showProduct(it.p.id, it.colour); return; }
     kitItems.splice(i, 1);
     renderKit();
     announce(`Removed ${it.p.name} from this look.`);
@@ -534,8 +549,12 @@
   });
   $("#kit-close").addEventListener("click", () => kit.close());
 
-  // ---- Product sheet: turntable, zoom, static on colour change -------------
-  const pd = $("#pd");
+  // ---- Product view -----------------------------------------------------------
+  // The same form drives two layouts: the quick view pop-up on the home page (#pd, with a turntable,
+  // zoom and static on colour change) and the full product page at p/<id>/ (#pdp, with a photo
+  // gallery, a full-screen viewer, tabs and a buy bar on phones).
+  const pd = $("#pd"), pdp = $("#pdp");
+  const pdForm = $("#pd-form");
   const stage = $("#pd-stage"), zoomLayer = $("#pd-zoom-layer"), turn = $("#pd-turn"), face = $("#pd-face");
   const lens = $("#pd-lens"), lensInner = $("#pd-lens-inner"), pdStatic = $("#pd-static"), zoomBtn = $("#pd-zoom");
   const LENS = 190, LENS_ZOOM = 2.4, ZOOM = 2.2;
@@ -544,17 +563,31 @@
   let angle = 0, side = "front", tweenId = 0, drag = null, units = "cm", modelOn = false;
   let zoomed = false, pan = { x: 0, y: 0 }, lastTap = { t: 0, x: 0, y: 0 };
 
+  // Opens a product in the quick view where there is one (home), or goes to its page.
+  function showProduct(id, colour) {
+    if (pd) openProduct(id, colour);
+    else location.href = pageUrl(id, colour);
+  }
+
   const sideFor = a => { const n = ((a % 360) + 360) % 360; return n > 90 && n < 270 ? "back" : "front"; };
 
   // On-model photos come from the lookbook. A studio fit check in the chosen colour comes first.
   const lookPieces = LOOKS.flatMap(look => look.pieces.map(([id, colour]) => ({ look, id, colour })));
-  function modelShot(p, colour) {
-    const rank = x => (x.colour === colour ? 0 : 2) + (x.look.model && x.look.model.wears[p.id] ? 0 : 1);
-    return lookPieces.filter(x => x.id === p.id).sort((a, b) => rank(a) - rank(b))[0] || null;
+  const shotRank = (p, colour) => x => (x.colour === colour ? 0 : 2) + (x.look.model && x.look.model.wears[p.id] ? 0 : 1);
+  function modelShots(p, colour) {
+    const rank = shotRank(p, colour);
+    return lookPieces.filter(x => x.id === p.id).sort((a, b) => rank(a) - rank(b));
   }
+  const modelShot = (p, colour) => modelShots(p, colour)[0] || null;
   const modelSize = (p, shot) => shot.look.model && shot.look.model.wears[p.id];
+  function shotCaption(p, shot) {
+    const size = modelSize(p, shot);
+    const what = size ? `Model is ${shot.look.model.height}cm and wears ${size}` : `Look ${shot.look.n}: ${shot.look.title}`;
+    return shot.colour === sel.colour ? what : `${what} · Shown in ${COLOURS[shot.colour].name}`;
+  }
 
   function drawFace() {
+    if (!stage) return;
     const p = sel.p;
     const shot = modelOn ? modelShot(p, sel.colour) : null;
     if (shot) {
@@ -563,9 +596,7 @@
       face.innerHTML = (wide ? "" : `<img class="model-bg" src="${lookSrc(look, look.w / 2)}" alt="" decoding="async" draggable="false">`) +
         lookImg(look, { sizes: PD_SIZES, cls, lazy: false });
       lensInner.innerHTML = `<img class="${cls}" src="${lookSrc(look, look.w)}" alt="" decoding="async"${look.pos ? ` style="object-position:${look.pos}"` : ""}>`;
-      const size = modelSize(p, shot);
-      const what = size ? `Model is ${shot.look.model.height}cm and wears ${size}` : `Look ${look.n}: ${look.title}`;
-      $("#pd-model-cap").textContent = shot.colour === sel.colour ? what : `${what} · Shown in ${COLOURS[shot.colour].name}`;
+      $("#pd-model-cap").textContent = shotCaption(p, shot);
     } else {
       face.innerHTML = art(p, sel.colour, side, { sizes: PD_SIZES, alt: altFor(p, sel.colour, side), lazy: false });
       lensInner.innerHTML = `<img class="product-img" src="${imgSrc(p, sel.colour, side)}" alt="" decoding="async">`;
@@ -597,6 +628,7 @@
 
   // Zoom: scale the photo 2.2x around a point, then drag to pan.
   function setZoom(on, at) {
+    if (!stage) return;
     zoomed = on;
     stage.classList.toggle("zoomed", on);
     zoomBtn.setAttribute("aria-pressed", String(on));
@@ -624,67 +656,72 @@
     lens.style.transform = `translate(${x - LENS / 2}px,${y - LENS / 2}px)`;
     lensInner.style.transform = `translate(${LENS / 2 - x * LENS_ZOOM}px,${LENS / 2 - y * LENS_ZOOM}px)`;
   }
-  stage.addEventListener("pointerdown", e => {
-    if (e.button !== 0 || e.target.closest(".zoom-btn")) return;
-    drag = { x: e.clientX, y: e.clientY, a: angle, px: pan.x, py: pan.y, id: e.pointerId, moved: false };
-    tweenId++;
-    lens.hidden = true;
-    stage.setPointerCapture(e.pointerId);
-  });
-  stage.addEventListener("pointermove", e => {
-    if (drag && e.pointerId === drag.id) {
-      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
-      if (zoomed) {
-        stage.classList.add("panning");
-        pan.x = drag.px + dx / ZOOM;
-        pan.y = drag.py + dy / ZOOM;
-        applyPan();
+  if (stage) {
+    stage.addEventListener("pointerdown", e => {
+      if (e.button !== 0 || e.target.closest(".zoom-btn")) return;
+      drag = { x: e.clientX, y: e.clientY, a: angle, px: pan.x, py: pan.y, id: e.pointerId, moved: false };
+      tweenId++;
+      lens.hidden = true;
+      stage.setPointerCapture(e.pointerId);
+    });
+    stage.addEventListener("pointermove", e => {
+      if (drag && e.pointerId === drag.id) {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+        if (zoomed) {
+          stage.classList.add("panning");
+          pan.x = drag.px + dx / ZOOM;
+          pan.y = drag.py + dy / ZOOM;
+          applyPan();
+          return;
+        }
+        if (modelOn) return;
+        if (drag.moved) stage.classList.add("dragging");
+        let a = drag.a + dx * 0.55;
+        if (!canTurn()) a = clamp(a, -38, 38);
+        applyAngle(a);
         return;
       }
-      if (modelOn) return;
-      if (drag.moved) stage.classList.add("dragging");
-      let a = drag.a + dx * 0.55;
-      if (!canTurn()) a = clamp(a, -38, 38);
-      applyAngle(a);
-      return;
-    }
-    if (e.pointerType === "mouse" && finePointer && !zoomed && !e.target.closest(".zoom-btn")) { lens.hidden = false; moveLens(e); }
-    else lens.hidden = true;
-  });
-  const endDrag = e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const moved = drag.moved;
-    drag = null;
-    stage.classList.remove("dragging", "panning");
-    if (!zoomed && !modelOn) tweenTo(canTurn() ? Math.round(angle / 180) * 180 : 0, 520);
-    if (e.type === "pointerup" && !moved) {
-      // Double-tap (or double-click) toggles zoom at that point.
-      const r = stage.getBoundingClientRect();
-      const x = e.clientX - r.left, y = e.clientY - r.top, now = performance.now();
-      if (now - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { setZoom(!zoomed, { x, y }); lastTap.t = 0; }
-      else lastTap = { t: now, x, y };
-    }
-  };
-  stage.addEventListener("pointerup", endDrag);
-  stage.addEventListener("pointercancel", endDrag);
-  stage.addEventListener("pointerleave", () => { lens.hidden = true; });
-  zoomBtn.addEventListener("click", () => setZoom(!zoomed));
+      if (e.pointerType === "mouse" && finePointer && !zoomed && !e.target.closest(".zoom-btn")) { lens.hidden = false; moveLens(e); }
+      else lens.hidden = true;
+    });
+    const endDrag = e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const moved = drag.moved;
+      drag = null;
+      stage.classList.remove("dragging", "panning");
+      if (!zoomed && !modelOn) tweenTo(canTurn() ? Math.round(angle / 180) * 180 : 0, 520);
+      if (e.type === "pointerup" && !moved) {
+        // Double-tap (or double-click) toggles zoom at that point.
+        const r = stage.getBoundingClientRect();
+        const x = e.clientX - r.left, y = e.clientY - r.top, now = performance.now();
+        if (now - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30) { setZoom(!zoomed, { x, y }); lastTap.t = 0; }
+        else lastTap = { t: now, x, y };
+      }
+    };
+    stage.addEventListener("pointerup", endDrag);
+    stage.addEventListener("pointercancel", endDrag);
+    stage.addEventListener("pointerleave", () => { lens.hidden = true; });
+    zoomBtn.addEventListener("click", () => setZoom(!zoomed));
+  }
 
+  // pdp: true when filling in the product page as it loads.
   function openProduct(id, colour, { push = true } = {}) {
     const p = byId[id];
-    if (!p) return;
+    if (!p || (!pd && !pdp)) return;
     sel.p = p;
     sel.colour = colour && p.colours.includes(colour) && !colourOut(p, colour) ? colour : (p.colours.find(k => !colourOut(p, k)) || p.colours[0]);
     sel.size = null;
-    tweenId++;
-    angle = 0;
-    side = "front";
-    modelOn = false;
-    turn.style.transform = "";
-    face.style.transform = "";
-    setZoom(false);
-    if (hasBack(p)) preload(imgSrc(p, sel.colour, "back"));
+    if (stage) {
+      tweenId++;
+      angle = 0;
+      side = "front";
+      modelOn = false;
+      turn.style.transform = "";
+      face.style.transform = "";
+      setZoom(false);
+      if (hasBack(p)) preload(imgSrc(p, sel.colour, "back"));
+    }
 
     $("#pd-eyebrow").textContent = `Drop 01 · ${CATS.find(c => c.id === p.cat).label}`;
     $("#pd-name").textContent = p.name;
@@ -697,7 +734,11 @@
     $("#pd-care").textContent = CARE[p.care];
 
     const g = p.guide && GUIDES[p.guide];
-    $("#pd-guide-wrap").hidden = !g;
+    if (pd) $("#pd-guide-wrap").hidden = !g;
+    else {
+      $("#tab-size").hidden = !g;
+      if (!g && $("#tab-size").getAttribute("aria-selected") === "true") selectTab(tabs[0]);
+    }
     $("#pd-guide-link").hidden = !g;
     $("#finder-out").textContent = "";
     $("#finder-in").value = "";
@@ -711,19 +752,38 @@
         <span style="background:${swatchBg(k)}"></span></label>`;
     }).join("");
 
-    $("#pd-pairs").innerHTML = p.pairs.map(pid => {
-      const q = byId[pid];
-      return `<button class="pair" type="button" data-id="${q.id}"><span class="pair-img">${art(q, q.colours[0], "front", { sizes: "160px" })}</span><span class="pair-name">${esc(q.name)}</span><span class="pair-price">${price(q.price)}</span></button>`;
-    }).join("");
-
+    renderPairs();
     renderVariant();
     syncSavedButtons();
     noteRecent(p.id, sel.colour);
-    if (!pd.open) pd.showModal();
-    pd.scrollTop = 0;
-    syncUrl(push);
-    if (hasBack(p) && !still) setTimeout(() => { if (pd.open && !drag && !zoomed) { tweenTo(34, 520); setTimeout(() => { if (!drag && !zoomed) tweenTo(0, 700); }, 560); } }, 520);
+    if (pd) {
+      $("#pd-full").href = pageUrl(p.id, sel.colour);
+      if (!pd.open) pd.showModal();
+      pd.scrollTop = 0;
+      syncUrl(push);
+      if (hasBack(p) && !still) setTimeout(() => { if (pd.open && !drag && !zoomed) { tweenTo(34, 520); setTimeout(() => { if (!drag && !zoomed) tweenTo(0, 700); }, 560); } }, 520);
+    } else {
+      renderRecent();
+      pageColourUrl();
+    }
   }
+
+  // "Complete the look": small buttons that swap the quick view, or product cards on the product page.
+  function renderPairs() {
+    const p = sel.p;
+    if (pd) {
+      $("#pd-pairs").innerHTML = p.pairs.map(pid => {
+        const q = byId[pid];
+        return `<button class="pair" type="button" data-id="${q.id}"><span class="pair-img">${art(q, q.colours[0], "front", { sizes: "160px" })}</span><span class="pair-name">${esc(q.name)}</span><span class="pair-price">${price(q.price)}</span></button>`;
+      }).join("");
+      return;
+    }
+    $("#pd-pairs").innerHTML = p.pairs.map(pid => cardHtml(byId[pid], firstIn(byId[pid]), PAIR_SIZES)).join("");
+    if (finePointer) $("#pd-pairs").querySelectorAll(".card").forEach(bindTilt);
+    const total = [p, ...p.pairs.map(pid => byId[pid])].reduce((sum, q) => sum + q.price, 0);
+    $("#look-kit").innerHTML = `Shop the full look · ${price(total)}`;
+  }
+  const PAIR_SIZES = "(max-width: 900px) 46vw, (max-width: 1320px) 31vw, 420px";
 
   const fmtLen = cm => units === "in" ? `${(cm / 2.54).toFixed(1)}in` : `${+cm.toFixed(1)}cm`;
   function renderGuide() {
@@ -741,15 +801,6 @@
     $("#finder-in").placeholder = units === "in" ? "e.g. 24" : "e.g. 60";
     $("#pd-how").textContent = g.how;
   }
-  $("#pd-units").addEventListener("click", e => {
-    const b = e.target.closest("[data-unit]");
-    if (!b || b.dataset.unit === units) return;
-    const v = parseFloat($("#finder-in").value);
-    units = b.dataset.unit;
-    if (isFinite(v)) $("#finder-in").value = units === "in" ? (v / 2.54).toFixed(1) : (v * 2.54).toFixed(1);
-    renderGuide();
-    $("#finder-out").textContent = "";
-  });
 
   // Find your size: match a top the shopper already likes against our chest measurements.
   function suggestSize() {
@@ -778,26 +829,44 @@
     }
     out.textContent = msg;
   }
-  $("#finder-go").addEventListener("click", suggestSize);
-  $("#finder-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); suggestSize(); } });
 
+  // Tabs on the product page: Details, Size & fit, Delivery & returns.
+  const tabs = [...document.querySelectorAll('#pd-tabs [role="tab"]')];
+  function selectTab(tab, focus) {
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      $(`#${t.getAttribute("aria-controls")}`).hidden = !on;
+    });
+    if (focus) tab.focus();
+  }
+  if (tabs.length) {
+    $("#pd-tabs").addEventListener("click", e => { const t = e.target.closest('[role="tab"]'); if (t) selectTab(t); });
+    $("#pd-tabs").addEventListener("keydown", e => {
+      const shown = tabs.filter(t => !t.hidden), i = shown.indexOf(document.activeElement);
+      if (i < 0) return;
+      const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: shown.length - 1 }[e.key];
+      if (to === undefined) return;
+      e.preventDefault();
+      selectTab(shown[(to + shown.length) % shown.length], true);
+    });
+  }
+
+  // Opens the size guide or delivery section: an accordion in the quick view, a tab on the product page.
   function openSection(id) {
     const d = $(id);
+    const tab = tabs.find(t => t.getAttribute("aria-controls") === d.id);
+    if (tab) {
+      selectTab(tab);
+      $("#pd-tabs").scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+      tab.focus({ preventScroll: true });
+      return;
+    }
     d.open = true;
     d.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
     d.querySelector("summary").focus({ preventScroll: true });
   }
-  $("#pd-guide-link").addEventListener("click", () => openSection("#pd-guide-wrap"));
-  $("#pd-returns-link").addEventListener("click", () => openSection("#pd-returns-wrap"));
-  $("#pd-pairs").addEventListener("click", async e => {
-    const b = e.target.closest("[data-id]");
-    if (!b) return;
-    const q = byId[b.dataset.id];
-    const s = burst(pdStatic, 260);
-    await Promise.all([still ? null : wait(110), preload(imgSrc(q, q.colours[0], "front"))]);
-    openProduct(q.id);
-    await s;
-  });
 
   function renderVariant() {
     const p = sel.p, key = sel.colour, c = COLOURS[key];
@@ -806,26 +875,28 @@
     $("#pd-colour-name").textContent = c.name;
     const shot = modelShot(p, key);
     if (!shot) modelOn = false;
-    const views = [...(hasBack(p) ? ["front", "back"] : shot ? ["front"] : []), ...(shot ? ["model"] : [])];
-    const current = modelOn ? "model" : side;
-    $("#pd-views").innerHTML = views.map(v => {
-      const thumb = v === "model"
-        ? `<img class="model-thumb" src="${lookSrc(shot.look, shot.look.w / 2)}" alt="" loading="lazy" decoding="async" style="object-position:${shot.look.pos || "50% 35%"}">`
-        : art(p, key, v, { sizes: "64px" });
-      return `<button class="pd-view" type="button" data-view="${v}" aria-pressed="${v === current}" aria-label="${v === "model" ? "Show on a model" : `Show ${v}`}">${thumb}</button>`;
-    }).join("");
-    stage.classList.toggle("static-only", !canTurn());
-    stage.classList.toggle("on-model", modelOn);
-    const turnHint = canTurn() ? "Drag to turn · " : "";
-    $("#pd-hint").textContent = turnHint + (finePointer ? "Hover to zoom" : "Double-tap to zoom");
-    drawFace();
+    if (stage) {
+      const views = [...(hasBack(p) ? ["front", "back"] : shot ? ["front"] : []), ...(shot ? ["model"] : [])];
+      const current = modelOn ? "model" : side;
+      $("#pd-views").innerHTML = views.map(v => {
+        const thumb = v === "model"
+          ? `<img class="model-thumb" src="${lookSrc(shot.look, shot.look.w / 2)}" alt="" loading="lazy" decoding="async" style="object-position:${shot.look.pos || "50% 35%"}">`
+          : art(p, key, v, { sizes: "64px" });
+        return `<button class="pd-view" type="button" data-view="${v}" aria-pressed="${v === current}" aria-label="${v === "model" ? "Show on a model" : `Show ${v}`}">${thumb}</button>`;
+      }).join("");
+      stage.classList.toggle("static-only", !canTurn());
+      stage.classList.toggle("on-model", modelOn);
+      const turnHint = canTurn() ? "Drag to turn · " : "";
+      $("#pd-hint").textContent = turnHint + (finePointer ? "Hover to zoom" : "Double-tap to zoom");
+      drawFace();
+    } else renderGallery();
 
     // How it fits: the model's height and size, from the lookbook.
     const size = shot && modelSize(p, shot);
     $("#pd-fit-note").hidden = !shot;
     if (shot) {
       $("#pd-fit-text").textContent = size ? `Model is ${shot.look.model.height}cm and wears ${size}.` : `Seen in look ${shot.look.n}, ${shot.look.title}.`;
-      $("#pd-fit-view").textContent = modelOn ? "Show the product" : "View on model";
+      $("#pd-fit-view").textContent = !stage ? "See the photo" : modelOn ? "Show the product" : "View on model";
     }
 
     // Sold-out sizes stay selectable so shoppers can ask to hear when they're back.
@@ -850,24 +921,111 @@
     add.disabled = !sel.size;
     add.classList.toggle("primary", !out);
     add.textContent = !sel.size ? "Select a size" : out ? `Notify me when ${sel.size} is back` : `Add to bag · ${price(p.price)}`;
+    updateBuybar();
   }
 
-  $("#pd-swatches").addEventListener("change", async e => {
-    if (e.target.name !== "pd-colour") return;
-    sel.colour = e.target.value;
-    const b = burst(pdStatic, 280);
-    const shot = modelOn && modelShot(sel.p, sel.colour);
-    await Promise.all([still ? null : wait(120), preload(shot ? lookSrc(shot.look, shot.look.w / 2) : imgSrc(sel.p, sel.colour, side))]);
-    renderVariant();
-    noteRecent(sel.p.id, sel.colour);
-    syncUrl(false);
-    await b;
-  });
-  $("#pd-sizes").addEventListener("change", e => {
-    if (e.target.name !== "pd-size") return;
-    sel.size = e.target.value;
-    updateAdd();
-  });
+  if (pdForm) {
+    $("#pd-units").addEventListener("click", e => {
+      const b = e.target.closest("[data-unit]");
+      if (!b || b.dataset.unit === units) return;
+      const v = parseFloat($("#finder-in").value);
+      units = b.dataset.unit;
+      if (isFinite(v)) $("#finder-in").value = units === "in" ? (v / 2.54).toFixed(1) : (v * 2.54).toFixed(1);
+      renderGuide();
+      $("#finder-out").textContent = "";
+    });
+    $("#finder-go").addEventListener("click", suggestSize);
+    $("#finder-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); suggestSize(); } });
+    $("#pd-guide-link").addEventListener("click", () => openSection("#pd-guide-wrap"));
+    $("#pd-returns-link").addEventListener("click", () => openSection("#pd-returns-wrap"));
+    $("#pd-swatches").addEventListener("change", async e => {
+      if (e.target.name !== "pd-colour") return;
+      sel.colour = e.target.value;
+      if (stage) {
+        const b = burst(pdStatic, 280);
+        const shot = modelOn && modelShot(sel.p, sel.colour);
+        await Promise.all([still ? null : wait(120), preload(shot ? lookSrc(shot.look, shot.look.w / 2) : imgSrc(sel.p, sel.colour, side))]);
+        renderVariant();
+        noteRecent(sel.p.id, sel.colour);
+        syncUrl(false);
+        $("#pd-full").href = pageUrl(sel.p.id, sel.colour);
+        await b;
+        return;
+      }
+      await preload(imgSrc(sel.p, sel.colour, "front", narrowScreen));
+      renderVariant();
+      noteRecent(sel.p.id, sel.colour);
+      pageColourUrl();
+    });
+    $("#pd-sizes").addEventListener("change", e => {
+      if (e.target.name !== "pd-size") return;
+      sel.size = e.target.value;
+      updateAdd();
+    });
+    $("#pd-fit-view").addEventListener("click", () => {
+      if (stage) { setModel(!modelOn); return; }
+      // On the product page: bring the first on-model photo into view.
+      const i = galItems.findIndex(it => it.kind === "look");
+      if (i >= 0) showSlide(i);
+    });
+    $("#pd-save").addEventListener("click", () => toggleSaved(sel.p.id, sel.colour));
+    pdForm.addEventListener("submit", e => {
+      e.preventDefault();
+      if (!sel.size) return;
+      const p = sel.p, colour = sel.colour, size = sel.size;
+      if (isOut(p, colour, size)) {
+        $("#pd-size-note").textContent = `Preview only: restock alerts aren't saved yet, so we can't email you about ${size}.`;
+        return;
+      }
+      const from = flyFrom();
+      const src = imgSrc(p, colour, stage && !modelOn ? side : "front");
+      addToBag(p.id, colour, size);
+      if (pd) pd.close();
+      const msg = `Added ${p.name}, ${COLOURS[colour].name}, ${size}`;
+      flyToBag(from, src).then(() => { bumpBag(); showToast(msg); });
+      announce(`${msg} to your bag.`);
+    });
+  }
+  // Where the photo flies to the bag from: the turntable, the gallery photo in view, or the button.
+  function flyFrom() {
+    if (stage) return stage.getBoundingClientRect();
+    const slide = gal && gal.children[galIndex];
+    const r = slide ? slide.getBoundingClientRect() : null;
+    if (r && r.top >= 0 && r.bottom <= window.innerHeight) return r;
+    const btn = (buybar && buybar.classList.contains("show") ? $("#buybar-add") : $("#pd-add")).getBoundingClientRect();
+    return { left: btn.left + btn.width / 2 - 50, top: btn.top - 130, width: 100, height: 120 };
+  }
+
+  if (pd) {
+    $("#pd-pairs").addEventListener("click", async e => {
+      const b = e.target.closest("[data-id]");
+      if (!b) return;
+      const q = byId[b.dataset.id];
+      const s = burst(pdStatic, 260);
+      await Promise.all([still ? null : wait(110), preload(imgSrc(q, q.colours[0], "front"))]);
+      openProduct(q.id);
+      await s;
+    });
+    $("#pd-views").addEventListener("click", async e => {
+      const b = e.target.closest("[data-view]");
+      if (!b) return;
+      const v = b.dataset.view;
+      if (v === "model") { setModel(true); return; }
+      if (modelOn) { await setModel(false); if (v === "back") tweenTo(180, 760); return; }
+      if (zoomed) setZoom(false);
+      tweenTo(nearest(v === "back" ? 180 : 0), 760);
+    });
+    $("#pd-close").addEventListener("click", () => pd.close());
+    // The quick view added a history entry with the product's address. Step back out of it first, so
+    // the history reads shop, then product page, and Back from the product page returns to the shop.
+    $("#pd-full").addEventListener("click", e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button || !ROUTING || !(history.state && history.state.pd)) return;
+      e.preventDefault();
+      const href = $("#pd-full").href;
+      window.addEventListener("popstate", () => { location.href = href; }, { once: true });
+      history.back();
+    });
+  }
   async function setModel(on) {
     if (on === modelOn) return;
     tweenId++;
@@ -883,34 +1041,183 @@
     renderVariant();
     await b;
   }
-  $("#pd-views").addEventListener("click", async e => {
-    const b = e.target.closest("[data-view]");
-    if (!b) return;
-    const v = b.dataset.view;
-    if (v === "model") { setModel(true); return; }
-    if (modelOn) { await setModel(false); if (v === "back") tweenTo(180, 760); return; }
-    if (zoomed) setZoom(false);
-    tweenTo(nearest(v === "back" ? 180 : 0), 760);
-  });
-  $("#pd-fit-view").addEventListener("click", () => setModel(!modelOn));
-  $("#pd-save").addEventListener("click", () => toggleSaved(sel.p.id, sel.colour));
-  $("#pd-form").addEventListener("submit", e => {
-    e.preventDefault();
-    if (!sel.size) return;
-    const p = sel.p, colour = sel.colour, size = sel.size;
-    if (isOut(p, colour, size)) {
-      $("#pd-size-note").textContent = `Preview only: restock alerts aren't saved yet, so we can't email you about ${size}.`;
-      return;
+
+  // ---- Product page: gallery, full-screen viewer, buy bar ---------------------
+  const gal = $("#gal-track"), lb = $("#lightbox"), buybar = $("#buybar");
+  let galItems = [], galIndex = 0;
+  // Product photos (front, back), then every lookbook photo with this piece in it.
+  function galleryFor(p, key) {
+    return [...p.views.map(view => ({ kind: "product", view })),
+      ...modelShots(p, key).map(shot => ({ kind: "look", shot }))];
+  }
+  const galAlt = it => it.kind === "product" ? altFor(sel.p, sel.colour, it.view) : it.shot.look.alt;
+  function renderGallery() {
+    if (!gal) return;
+    const p = sel.p, key = sel.colour;
+    const first = !galItems.length;
+    galItems = galleryFor(p, key);
+    // The page arrives with the gallery already drawn in its first colour; keep those photos rather
+    // than swapping in identical ones, which would make the browser paint the main photo twice.
+    if (first && gal.dataset.colour === key && gal.children.length === galItems.length) { renderDots(); return; }
+    gal.dataset.colour = key;
+    const odd = galItems.length % 2 === 1;
+    gal.classList.toggle("odd", odd);
+    gal.innerHTML = galItems.map((it, i) => {
+      const sizes = odd && i === 0 ? "(max-width: 900px) 100vw, 56vw" : "(max-width: 900px) 100vw, 28vw";
+      const img = it.kind === "product"
+        ? art(p, key, it.view, { sizes, alt: galAlt(it), lazy: i > 1 })
+        : lookImg(it.shot.look, { sizes, cls: "cover", lazy: i > 1 });
+      const cap = it.kind === "look" ? `<p class="gal-cap" aria-hidden="true">${esc(shotCaption(p, it.shot))}</p>` : "";
+      return `<li class="gal-slide"><button class="gal-btn" type="button" data-i="${i}">${img}<span class="vh">${it.kind === "look" ? `${esc(shotCaption(p, it.shot))}. ` : ""}Open full screen</span></button>${cap}</li>`;
+    }).join("");
+    gal.scrollLeft = 0;
+    renderDots();
+  }
+  function renderDots() {
+    $("#gal-dots").innerHTML = galItems.length > 1 ? galItems.map((it, i) =>
+      `<button class="gal-dot" type="button" data-i="${i}" aria-label="Photo ${i + 1} of ${galItems.length}"${i === 0 ? ' aria-current="true"' : ""}></button>`).join("") : "";
+    setGalIndex(0);
+  }
+  function setGalIndex(i) {
+    galIndex = i;
+    $("#gal-count").textContent = galItems.length > 1 ? `${i + 1} / ${galItems.length}` : "";
+    document.querySelectorAll("#gal-dots .gal-dot").forEach((d, j) => { if (j === i) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current"); });
+  }
+  // On phones the gallery swipes sideways; on wider screens the photos stack and scroll with the page.
+  const galSwipes = () => gal.scrollWidth > gal.clientWidth + 2;
+  function showSlide(i) {
+    const li = gal.children[i];
+    if (!li) return;
+    if (galSwipes()) {
+      gal.scrollTo({ left: li.offsetLeft, behavior: still ? "auto" : "smooth" });
+      gal.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "nearest" });
+    } else li.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+    setGalIndex(i);
+  }
+  if (gal) {
+    let galT = 0;
+    gal.addEventListener("scroll", () => {
+      cancelAnimationFrame(galT);
+      galT = requestAnimationFrame(() => { if (galSwipes()) setGalIndex(clamp(Math.round(gal.scrollLeft / gal.clientWidth), 0, galItems.length - 1)); });
+    }, { passive: true });
+    gal.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) openLightbox(+b.dataset.i); });
+    $("#gal-dots").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) showSlide(+b.dataset.i); });
+  }
+
+  // Full-screen viewer: swipe or use the arrows between photos; tap or click to zoom in, then drag
+  // (or move the mouse) to look around.
+  const lbTrack = $("#lb-track");
+  let lbIndex = 0, lbDown = null;
+  const LB_ZOOM = 2.2;
+  function openLightbox(i) {
+    const p = sel.p, key = sel.colour;
+    lbTrack.innerHTML = galItems.map(it => {
+      const src = it.kind === "product" ? imgSrc(p, key, it.view) : lookSrc(it.shot.look, it.shot.look.w);
+      return `<li class="lb-slide"><img src="${src}" alt="${esc(galAlt(it))}" decoding="async" draggable="false"></li>`;
+    }).join("");
+    lb.classList.remove("zoomed");
+    if (!lb.open) lb.showModal();
+    lbTrack.scrollLeft = lbTrack.clientWidth * i;
+    setLbIndex(i);
+    $("#lb-close").focus();
+  }
+  function setLbIndex(i) {
+    lbIndex = i;
+    $("#lb-count").textContent = `${i + 1} / ${galItems.length}`;
+    $("#lb-prev").disabled = i === 0;
+    $("#lb-next").disabled = i === galItems.length - 1;
+  }
+  function lbGo(i) {
+    if (i < 0 || i >= galItems.length) return;
+    unzoomAll();
+    lbTrack.scrollTo({ left: lbTrack.clientWidth * i, behavior: still ? "auto" : "smooth" });
+    setLbIndex(i);
+  }
+  function unzoomAll() {
+    lbTrack.querySelectorAll(".lb-slide.zoomed").forEach(sl => sl.classList.remove("zoomed"));
+    lb.classList.remove("zoomed");
+  }
+  function zoomAt(slide, e) {
+    const img = slide.querySelector("img"), r = img.getBoundingClientRect();
+    img.style.transformOrigin = `${clamp((e.clientX - r.left) / r.width * 100, 0, 100)}% ${clamp((e.clientY - r.top) / r.height * 100, 0, 100)}%`;
+  }
+  if (lb) {
+    lbTrack.addEventListener("scroll", () => {
+      if (!lb.classList.contains("zoomed")) setLbIndex(clamp(Math.round(lbTrack.scrollLeft / lbTrack.clientWidth), 0, galItems.length - 1));
+    }, { passive: true });
+    lbTrack.addEventListener("pointerdown", e => {
+      const slide = e.target.closest(".lb-slide");
+      if (!slide) return;
+      const o = getComputedStyle(slide.querySelector("img")).transformOrigin.split(" ").map(parseFloat);
+      lbDown = { x: e.clientX, y: e.clientY, ox: o[0], oy: o[1], moved: false, id: e.pointerId };
+    });
+    lbTrack.addEventListener("pointermove", e => {
+      const slide = e.target.closest(".lb-slide.zoomed");
+      if (!slide) return;
+      if (e.pointerType === "mouse") { zoomAt(slide, e); return; }
+      if (!lbDown || e.pointerId !== lbDown.id) return;
+      // Touch: drag the photo around. Moving the origin by d moves the picture by d x (1 - zoom).
+      const dx = e.clientX - lbDown.x, dy = e.clientY - lbDown.y;
+      if (Math.hypot(dx, dy) > 6) lbDown.moved = true;
+      const img = slide.querySelector("img"), w = img.clientWidth, h = img.clientHeight;
+      img.style.transformOrigin = `${clamp(lbDown.ox - dx / (LB_ZOOM - 1), 0, w)}px ${clamp(lbDown.oy - dy / (LB_ZOOM - 1), 0, h)}px`;
+    });
+    lbTrack.addEventListener("pointerup", e => {
+      const down = lbDown;
+      lbDown = null;
+      const slide = e.target.closest(".lb-slide");
+      if (!slide || (down && (down.moved || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6))) return;
+      const on = !slide.classList.contains("zoomed");
+      unzoomAll();
+      if (on) { zoomAt(slide, e); slide.classList.add("zoomed"); lb.classList.add("zoomed"); }
+    });
+    lbTrack.addEventListener("pointercancel", () => { lbDown = null; });
+    $("#lb-prev").addEventListener("click", () => lbGo(lbIndex - 1));
+    $("#lb-next").addEventListener("click", () => lbGo(lbIndex + 1));
+    $("#lb-close").addEventListener("click", () => lb.close());
+    lb.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight") { e.preventDefault(); lbGo(lbIndex + 1); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); lbGo(lbIndex - 1); }
+    });
+    // Closing the viewer leaves the gallery on the photo it was showing.
+    lb.addEventListener("close", () => { unzoomAll(); if (galSwipes()) { gal.scrollLeft = gal.children[lbIndex].offsetLeft; setGalIndex(lbIndex); } });
+  }
+
+  // Buy bar (phones): shows while the page's own Add to bag button is off screen.
+  function updateBuybar() {
+    if (!buybar || !sel.p) return;
+    const p = sel.p, out = sel.size && isOut(p, sel.colour, sel.size);
+    $("#buybar-name").textContent = p.name;
+    $("#buybar-opt").textContent = `${COLOURS[sel.colour].name} · ${sel.size ? sel.size : "Choose a size"} · ${price(p.price)}`;
+    $("#buybar-add").textContent = !sel.size ? "Select size" : out ? "Sold out" : "Add to bag";
+  }
+  if (buybar) {
+    document.body.classList.add("has-buybar");
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(([en]) => {
+        const show = !en.isIntersecting;
+        buybar.classList.toggle("show", show);
+        buybar.toggleAttribute("inert", !show);
+      }).observe($("#pd-add"));
     }
-    const from = stage.getBoundingClientRect();
-    const src = imgSrc(p, colour, modelOn ? "front" : side);
-    addToBag(p.id, colour, size);
-    pd.close();
-    const msg = `Added ${p.name}, ${COLOURS[colour].name}, ${size}`;
-    flyToBag(from, src).then(() => { bumpBag(); showToast(msg); });
-    announce(`${msg} to your bag.`);
+    $("#buybar-add").addEventListener("click", () => {
+      if (sel.size && !isOut(sel.p, sel.colour, sel.size)) { pdForm.requestSubmit(); return; }
+      // No size yet: take the shopper to the sizes.
+      const first = $("#pd-sizes input:not(:checked)") || $("#pd-sizes input");
+      $("#pd-sizes").scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+      if (first) first.focus({ preventScroll: true });
+      announce(sel.size ? `${sel.size} is sold out. Choose another size.` : "Choose a size.");
+    });
+  }
+  if (pdp) $("#look-kit").addEventListener("click", () => {
+    const p = sel.p;
+    openKit({ title: "Complete the look", items: [[p.id, sel.colour], ...p.pairs.map(id => [id, firstIn(byId[id])])] });
   });
-  $("#pd-close").addEventListener("click", () => pd.close());
+  // The product page's address follows the chosen colour, so it can be shared as it is.
+  function pageColourUrl() {
+    if (!ROUTING || !pdp) return;
+    try { history.replaceState(history.state, "", pageUrl(sel.p.id, sel.colour)); } catch { /* the address just doesn't change */ }
+  }
 
   function flyToBag(from, src) {
     if (still || !from.width) return Promise.resolve();
@@ -1055,10 +1362,7 @@
   $("#bag-open").addEventListener("click", openBag);
   $("#bag-close").addEventListener("click", () => bagDlg.close());
   $("#bag-continue").addEventListener("click", () => bagDlg.close());
-  $("#bag-shop").addEventListener("click", () => {
-    bagDlg.close();
-    $("#shop").scrollIntoView({ behavior: still ? "auto" : "smooth" });
-  });
+  $("#bag-shop").addEventListener("click", () => { bagDlg.close(); goShop(); });
 
   // ---- Checkout: Shopify Storefront API ------------------------------------
   // With CHECKOUT filled in (catalog.js), the bag becomes a Shopify cart and the shopper pays on
@@ -1120,7 +1424,8 @@
     renderFitList();
     renderLooks();
     renderBag();
-    if (pd.open) { $("#pd-price").textContent = price(sel.p.price); renderVariant(); }
+    if ($("#hero-tag-price")) $("#hero-tag-price").textContent = price(byId["test-card-hoodie"].price);
+    if ((pd && pd.open) || pdp) { $("#pd-price").textContent = price(sel.p.price); renderPairs(); renderVariant(); }
   }
 
   $("#checkout").addEventListener("click", async () => {
@@ -1177,6 +1482,7 @@
     markDirty();
     syncSavedButtons(id);
     if (savedDlg.open) renderSaved();
+    syncMenu();
     announce(on ? `Saved ${byId[id].name}.` : `Removed ${byId[id].name} from saved.`);
   }
   // pop: the id that just changed, so its buttons get a little bounce.
@@ -1186,7 +1492,7 @@
     $("#saved-count").hidden = n === 0;
     $("#saved-open").setAttribute("aria-label", `Saved, ${n} ${n === 1 ? "piece" : "pieces"}`);
     const btns = [...document.querySelectorAll(".save-tog")];
-    if (sel.p) { $("#pd-save").dataset.id = sel.p.id; btns.push($("#pd-save")); }
+    if (sel.p && $("#pd-save")) { $("#pd-save").dataset.id = sel.p.id; btns.push($("#pd-save")); }
     btns.forEach(b => {
       b.setAttribute("aria-pressed", String(isSaved(b.dataset.id)));
       if (pop && b.dataset.id === pop && !still) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); }
@@ -1216,7 +1522,7 @@
   $("#saved-lines").addEventListener("click", e => {
     const b = e.target.closest("[data-act]");
     if (!b) return;
-    if (b.dataset.act === "open") { savedDlg.close(); openProduct(b.dataset.id, b.dataset.colour); return; }
+    if (b.dataset.act === "open") { savedDlg.close(); showProduct(b.dataset.id, b.dataset.colour); return; }
     const i = saved.findIndex(x => x.id === b.dataset.id);
     toggleSaved(b.dataset.id);
     const rest = $("#saved-lines").querySelectorAll('[data-act="remove"]');
@@ -1224,10 +1530,7 @@
   });
   $("#saved-open").addEventListener("click", () => { renderSaved(); if (!savedDlg.open) savedDlg.showModal(); });
   $("#saved-close").addEventListener("click", () => savedDlg.close());
-  $("#saved-shop").addEventListener("click", () => {
-    savedDlg.close();
-    $("#shop").scrollIntoView({ behavior: still ? "auto" : "smooth" });
-  });
+  $("#saved-shop").addEventListener("click", () => { savedDlg.close(); goShop(); });
 
   // ---- Recently viewed -----------------------------------------------------
   let recent = readList(RECENT_KEY, validPick).slice(0, 8);
@@ -1236,25 +1539,28 @@
     writeList(RECENT_KEY, recent);
     markDirty();
   }
+  // Shown under the grid on the home page and under a product page (leaving out that product).
   function renderRecent() {
-    $("#recent").hidden = recent.length === 0;
-    $("#recent-row").innerHTML = recent.map(x => {
+    if (!$("#recent")) return;
+    const list = recent.filter(x => !pdp || !sel.p || x.id !== sel.p.id);
+    $("#recent").hidden = list.length === 0;
+    $("#recent-row").innerHTML = list.map(x => {
       const p = byId[x.id];
-      return `<li><button class="mini" type="button" data-id="${p.id}" data-colour="${x.colour}">
+      return `<li><a class="mini" href="${pageUrl(p.id, x.colour)}">
         <span class="mini-img">${art(p, x.colour, "front", { sizes: "150px" })}</span>
         <span class="mini-name">${esc(p.name)}</span><span class="mini-price">${price(p.price)}</span>
-      </button></li>`;
+      </a></li>`;
     }).join("");
   }
-  $("#recent-row").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) openProduct(b.dataset.id, b.dataset.colour); });
-  $("#recent-clear").addEventListener("click", () => {
-    recent = [];
+  if ($("#recent")) $("#recent-clear").addEventListener("click", () => {
+    recent = recent.filter(x => pdp && sel.p && x.id === sel.p.id);
     writeList(RECENT_KEY, recent);
     markDirty();
     renderRecent();
     announce("Cleared recently viewed.");
-    $("#shop-title").setAttribute("tabindex", "-1");
-    $("#shop-title").focus();
+    const h = $("#shop-title") || $("#pd-name");
+    h.setAttribute("tabindex", "-1");
+    h.focus();
   });
 
   // ---- Customer accounts (Supabase) -----------------------------------------
@@ -1373,6 +1679,7 @@
   }
 
   function syncAccountButton() {
+    $("#menu-account-txt").textContent = user ? "Your account" : "Sign in or create an account";
     $("#account-dot").hidden = !user;
     $("#account-open").setAttribute("aria-label", user ? `Account, signed in as ${user.email}` : "Account, sign in");
   }
@@ -1573,12 +1880,15 @@
 
   // ---- Search ----------------------------------------------------------------
   const searchDlg = $("#search"), searchIn = $("#search-in"), searchList = $("#search-list");
+  // Sections of the home page (#...) and other pages (.../).
   const SECTIONS = [
     { label: "Lookbook", href: "#lookbook", words: "lookbook looks photos model fit check" },
     { label: "The fit", href: "#fit", words: "fit outfit full broadcast flat lay" },
     { label: "Drop 02 countdown", href: "#drop-02", words: "drop 02 next countdown interference alert notify" },
-    { label: "Delivery and returns", href: "#delivery", words: "delivery shipping postage returns refund royal mail" },
-    { label: "About PLUGE", href: "#about", words: "about brand story pluge" },
+    { label: "Delivery and returns", href: "returns/", words: "delivery shipping postage returns refund exchange cancel" },
+    { label: "FAQ", href: "faq/", words: "faq help questions sizing size guide tracking order payment care wash" },
+    { label: "Contact us", href: "contact/", words: "contact email message help support order problem" },
+    { label: "Our story", href: "about/", words: "about brand story pluge made to order" },
   ];
   const searchIndex = PRODUCTS.map(p => ({
     p,
@@ -1588,7 +1898,6 @@
   const startsWord = (text, t) => new RegExp(`(^|[^a-z0-9])${reEsc(t)}`).test(text);
   function runSearch(q) {
     const terms = norm(q).split(/[\s,]+/).filter(Boolean);
-    const firstIn = p => p.colours.find(k => !colourOut(p, k)) || p.colours[0];
     if (!terms.length) return [...PRODUCTS.map(p => ({ kind: "p", p, colour: firstIn(p) })), ...SECTIONS.map(x => ({ kind: "s", ...x }))];
     const hits = [];
     for (const it of searchIndex) {
@@ -1625,7 +1934,7 @@
           <span class="opt-price">${price(r.p.price)}</span></li>`
       : `<li class="opt opt-section" role="option" id="opt-${i}" data-i="${i}" aria-selected="false">
           <span class="opt-img" aria-hidden="true">→</span>
-          <span class="opt-main"><span class="opt-name">${esc(r.label)}</span><span class="opt-meta">Go to section</span></span></li>`).join("");
+          <span class="opt-main"><span class="opt-name">${esc(r.label)}</span><span class="opt-meta">${r.href[0] === "#" ? "Go to section" : "Go to page"}</span></span></li>`).join("");
     const empty = $("#search-empty");
     empty.hidden = results.length > 0;
     if (!results.length) empty.textContent = `Nothing matches "${q}". Try "hoodie", "olive" or "XL".`;
@@ -1644,8 +1953,9 @@
   }
   function choose(r) {
     searchDlg.close();
-    if (r.kind === "p") { openProduct(r.p.id, r.colour); return; }
-    const target = $(r.href);
+    if (r.kind === "p") { location.href = pageUrl(r.p.id, r.colour); return; }
+    const target = r.href[0] === "#" && $(r.href);
+    if (!target) { location.href = ROOT + r.href; return; }
     target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
     const h = target.querySelector("h2, h3");
     if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
@@ -1677,29 +1987,47 @@
     if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector("dialog[open]")) { e.preventDefault(); openSearch(); }
   });
 
-  [pd, bagDlg, kit, savedDlg, searchDlg, acctDlg].forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
+  // ---- Menu (phones and small tablets) ------------------------------------------
+  const menuDlg = $("#menu");
+  function syncMenu() {
+    $("#menu-saved-txt").textContent = saved.length ? `Saved (${saved.length})` : "Saved";
+  }
+  $("#menu-open").addEventListener("click", () => { syncMenu(); if (!menuDlg.open) menuDlg.showModal(); });
+  $("#menu-close").addEventListener("click", () => menuDlg.close());
+  $("#menu-account").addEventListener("click", () => { menuDlg.close(); openAccount(); });
+  $("#menu-saved").addEventListener("click", () => { menuDlg.close(); renderSaved(); if (!savedDlg.open) savedDlg.showModal(); });
+  // A link to a section of the page the menu is open on just closes the menu and scrolls there.
+  menuDlg.addEventListener("click", e => {
+    const a = e.target.closest("a[href]");
+    if (a && a.hash && a.pathname === location.pathname && !a.dataset.cat) menuDlg.close();
+  });
+  // The menu is only for narrow screens; it closes if the window is widened past them.
+  window.matchMedia("(min-width: 901px)").addEventListener("change", e => { if (e.matches && menuDlg.open) menuDlg.close(); });
+
+  [pd, bagDlg, kit, savedDlg, searchDlg, acctDlg, menuDlg, lb].filter(Boolean).forEach(d => d.addEventListener("click", e => { if (e.target === d) d.close(); }));
 
   // ---- Product links: the sheet's address is p/<id>/, so it can be shared and Back closes it ----
-  const productUrl = (id, colour) => `${ROOT}p/${id}/${colour && colour !== byId[id].colours[0] ? `?colour=${colour}` : ""}`;
   function syncUrl(push) {
     document.title = `${sel.p.name} · ${BRAND}`;
     if (!ROUTING) return;
     const state = { pd: sel.p.id, colour: sel.colour };
     try {
-      if (push && !(history.state && history.state.pd)) history.pushState(state, "", productUrl(sel.p.id, sel.colour));
-      else history.replaceState(state, "", productUrl(sel.p.id, sel.colour));
+      if (push && !(history.state && history.state.pd)) history.pushState(state, "", pageUrl(sel.p.id, sel.colour));
+      else history.replaceState(state, "", pageUrl(sel.p.id, sel.colour));
     } catch { /* the address just doesn't change */ }
   }
-  pd.addEventListener("close", () => {
-    document.title = HOME_TITLE;
-    renderRecent();
-    if (ROUTING && history.state && history.state.pd) history.back();
-  });
-  window.addEventListener("popstate", e => {
-    const st = e.state;
-    if (st && st.pd && byId[st.pd]) openProduct(st.pd, st.colour, { push: false });
-    else if (pd.open) pd.close();
-  });
+  if (pd) {
+    pd.addEventListener("close", () => {
+      document.title = HOME_TITLE;
+      renderRecent();
+      if (ROUTING && history.state && history.state.pd) history.back();
+    });
+    window.addEventListener("popstate", e => {
+      const st = e.state;
+      if (st && st.pd && byId[st.pd]) openProduct(st.pd, st.colour, { push: false });
+      else if (pd.open) pd.close();
+    });
+  }
 
   const toast = $("#toast");
   let toastT;
@@ -1717,12 +2045,15 @@
   $("#toast-view").addEventListener("click", openBag);
 
   // ---- Drop 02: countdown, local time, teletext guide, sign-up --------------
-  $("#ttx-list").innerHTML = DROP_02_PIECES.map(([c, n, pr]) =>
-    `<li><span class="c">${c}</span><span class="n">${esc(n)}</span><span class="p">${price(pr)}</span></li>`).join("");
-  try {
-    const local = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(DROP_02);
-    $("#drop-local").textContent = `Your time: ${local}`;
-  } catch { /* leave the GMT time on its own */ }
+  const dropSec = $("#drop-02");
+  if (dropSec) {
+    $("#ttx-list").innerHTML = DROP_02_PIECES.map(([c, n, pr]) =>
+      `<li><span class="c">${c}</span><span class="n">${esc(n)}</span><span class="p">${price(pr)}</span></li>`).join("");
+    try {
+      const local = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(DROP_02);
+      $("#drop-local").textContent = `Your time: ${local}`;
+    } catch { /* leave the GMT time on its own */ }
+  }
   const clockFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   function setDigit(id, v) {
@@ -1736,20 +2067,19 @@
     const ms = DROP_02.getTime() - Date.now();
     if (ms <= 0) {
       ["cd-d", "cd-h", "cd-m", "cd-s"].forEach(id => setDigit(id, "00"));
-      $("#hero-drop-cta").textContent = "Drop 02 is live";
       return;
     }
-    const d = Math.floor(ms / 864e5);
-    setDigit("cd-d", pad(d));
+    setDigit("cd-d", pad(Math.floor(ms / 864e5)));
     setDigit("cd-h", pad(Math.floor(ms / 36e5) % 24));
     setDigit("cd-m", pad(Math.floor(ms / 6e4) % 60));
     setDigit("cd-s", pad(Math.floor(ms / 1e3) % 60));
-    $("#hero-drop-cta").textContent = d >= 1 ? `Drop 02 in ${d} ${d === 1 ? "day" : "days"}` : "Drop 02 today";
   }
-  tickClock();
-  setInterval(tickClock, 1000);
+  if (dropSec) {
+    tickClock();
+    setInterval(tickClock, 1000);
+  }
 
-  $("#notify").addEventListener("submit", e => {
+  if (dropSec) $("#notify").addEventListener("submit", e => {
     e.preventDefault();
     const input = $("#notify-email"), consent = $("#notify-consent"), msg = $("#notify-msg");
     if (!input.value.trim() || !input.checkValidity()) {
@@ -1769,25 +2099,21 @@
   }));
 
   // ---- Motion toggle -------------------------------------------------------
-  const motionBtn = $("#motion-toggle");
+  const motionBtns = [$("#motion-toggle"), $("#menu-motion")];
   function syncMotionBtn() {
     const text = still ? "Play motion" : "Pause motion";
-    motionBtn.querySelector(".motion-txt").textContent = text;
-    motionBtn.setAttribute("aria-label", text);
+    motionBtns.forEach(b => { b.querySelector(".motion-txt").textContent = text; b.setAttribute("aria-label", text); });
   }
-  motionBtn.addEventListener("click", () => {
+  motionBtns.forEach(b => b.addEventListener("click", () => {
     still = !still;
     root.dataset.motion = still ? "off" : "on";
     try { localStorage.setItem(MOTION_KEY, still ? "off" : "on"); } catch { /* remembered for this visit only */ }
     syncMotionBtn();
     setRotating(!still && !narrowScreen);
-    if (still) {
-      mqA.style.transform = mqB.style.transform = "";
-      document.querySelectorAll(".tilt").forEach(t => { t.style.setProperty("--rx", "0deg"); t.style.setProperty("--ry", "0deg"); });
-    }
+    if (still) document.querySelectorAll(".tilt").forEach(t => { t.style.setProperty("--rx", "0deg"); t.style.setProperty("--ry", "0deg"); });
     fitDirty = true;
     announce(still ? "Motion paused." : "Motion on.");
-  });
+  }));
   syncMotionBtn();
 
   // ---- Header hides on the way down, returns on the way up -----------------
@@ -1804,53 +2130,98 @@
   head.addEventListener("focusin", () => head.classList.remove("hide"));
 
   // ---- Visibility tracking -------------------------------------------------
-  if ("IntersectionObserver" in window) {
-    const io = new IntersectionObserver(entries => entries.forEach(en => {
-      if (en.target === tv) tvVisible = en.isIntersecting;
-      if (en.target.id === "mq") mq.visible = en.isIntersecting;
-    }));
-    io.observe(tv);
-    io.observe($("#mq"));
-  } else { mq.visible = true; }
+  if (tv && "IntersectionObserver" in window) {
+    new IntersectionObserver(([en]) => { tvVisible = en.isIntersecting; }).observe(tv);
+  }
 
-  // ---- One animation loop: timecode, channel timer, marquee, fit ------------
+  // ---- One animation loop (home page): timecode, channel timer, fit ----------
   const tcEl = $("#timecode");
   const t0 = performance.now();
-  let last = t0, lastScrollY = window.scrollY, lastTcSec = -1;
+  let last = t0, lastTcSec = -1;
   function frame(now) {
     const dt = Math.min(64, now - last);
     last = now;
 
-    const t = (now - t0) / 1000;
-    if (!still || Math.floor(t) !== lastTcSec) {
-      lastTcSec = Math.floor(t);
-      const ff = still ? 0 : Math.floor((t % 1) * 25);
-      tcEl.textContent = `TC ${pad(Math.floor(t / 3600))}:${pad(Math.floor(t / 60) % 60)}:${pad(Math.floor(t) % 60)}:${pad(ff)}`;
+    if (tv && tvVisible) {
+      const t = (now - t0) / 1000;
+      if (!still || Math.floor(t) !== lastTcSec) {
+        lastTcSec = Math.floor(t);
+        const ff = still ? 0 : Math.floor((t % 1) * 25);
+        tcEl.textContent = `TC ${pad(Math.floor(t / 3600))}:${pad(Math.floor(t / 60) % 60)}:${pad(Math.floor(t) % 60)}:${pad(ff)}`;
+      }
     }
-
-    const paused = !rotating || tvHover || tvFocus || !tvVisible || document.hidden || pd.open || bagDlg.open;
-    if (!paused && !chBusy) {
-      chElapsed += dt;
-      if (chElapsed >= CHANNEL_DWELL) tune(chIndex + 1);
-    }
-    pips[chIndex].style.setProperty("--p", rotating ? Math.min(1, chElapsed / CHANNEL_DWELL).toFixed(3) : 0);
-
-    const sy = window.scrollY;
-    const v = (sy - lastScrollY) / Math.max(dt, 1) * 1000;
-    lastScrollY = sy;
-    mq.vel += (v - mq.vel) * 0.12;
-    if (mq.visible && !still) {
-      const speed = 70 + Math.min(1600, Math.abs(mq.vel) * 0.5);
-      const dir = mq.vel < -20 ? -1 : 1;
-      mq.a = ((mq.a + dir * speed * dt / 1000) % mq.wa + mq.wa) % mq.wa;
-      mq.b = ((mq.b - dir * speed * dt / 1000) % mq.wb + mq.wb) % mq.wb;
-      const skew = clamp(mq.vel * -0.006, -14, 14).toFixed(2);
-      mqA.style.transform = `translate3d(${-mq.a}px,0,0) skewX(${skew}deg)`;
-      mqB.style.transform = `translate3d(${-mq.b}px,0,0) skewX(${skew}deg)`;
+    if (tv) {
+      const paused = !rotating || tvHover || tvFocus || !tvVisible || document.hidden || (pd && pd.open) || bagDlg.open;
+      if (!paused && !chBusy) {
+        chElapsed += dt;
+        if (chElapsed >= CHANNEL_DWELL) tune(chIndex + 1);
+      }
+      pips[chIndex].style.setProperty("--p", rotating ? Math.min(1, chElapsed / CHANNEL_DWELL).toFixed(3) : 0);
     }
 
     if (fitDirty) { fitDirty = false; updateFit(); }
     requestAnimationFrame(frame);
+  }
+
+  // ---- Contact page ------------------------------------------------------------
+  // With CONTACT.formEndpoint set (a Formspree form), messages are posted there and arrive by email.
+  // Without it, the shopper's email app opens with the message filled in.
+  const contactForm = $("#contact-form");
+  if (contactForm) {
+    const f = contactForm.elements, msg = $("#contact-msg"), sendBtn = $("#contact-send");
+    const CHECKS = [
+      ["name", el => el.value.trim(), "Enter your name."],
+      ["email", el => el.value.trim() && el.checkValidity(), "Enter your email address, like name@example.com."],
+      ["message", el => el.value.trim().length > 1, "Write your message."],
+    ];
+    contactForm.addEventListener("input", e => { if (e.target.getAttribute("aria-invalid") === "true") e.target.removeAttribute("aria-invalid"); });
+    contactForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      msg.classList.remove("err");
+      const bad = CHECKS.filter(([name, ok]) => !ok(f[name]));
+      CHECKS.forEach(([name]) => f[name].removeAttribute("aria-invalid"));
+      bad.forEach(([name]) => f[name].setAttribute("aria-invalid", "true"));
+      if (bad.length) {
+        msg.textContent = bad[0][2];
+        msg.classList.add("err");
+        f[bad[0][0]].focus();
+        return;
+      }
+      if (f._gotcha.value) return; // filled in by a spam bot, not a person
+      const data = {
+        name: f.name.value.trim(), email: f.email.value.trim(), topic: f.topic.value,
+        order: f.order.value.trim(), message: f.message.value.trim(),
+      };
+      const endpoint = CONTACT && CONTACT.formEndpoint;
+      if (!endpoint) {
+        const subject = `${data.topic}${data.order ? `, order ${data.order}` : ""}`;
+        const body = `${data.message}\n\n${data.name}\n${data.email}${data.order ? `\nOrder: ${data.order}` : ""}`;
+        location.href = `mailto:${COMPANY.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        msg.textContent = `Your email app should open with your message ready to send. If it doesn't, email us at ${COMPANY.email}.`;
+        return;
+      }
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Sending…";
+      msg.textContent = "";
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ ...data, _subject: `${BRAND} contact form: ${data.topic}`, _replyto: data.email }),
+        });
+        if (!res.ok) throw new Error(`the form service replied ${res.status}`);
+        contactForm.hidden = true;
+        $("#contact-done-email").textContent = data.email;
+        $("#contact-done").hidden = false;
+        $("#contact-done").focus();
+      } catch (err) {
+        msg.textContent = `Your message didn't send: ${String(err.message || err).replace(/\.$/, "")}. Try again, or email us at ${COMPANY.email}.`;
+        msg.classList.add("err");
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Send message";
+      }
+    });
   }
 
   // ---- Misc ----------------------------------------------------------------
@@ -1860,22 +2231,28 @@
     setTimeout(() => { live.textContent = text; }, 30);
   }
 
-  renderChannel(0, false);
-  setRotating(rotating);
   renderChips();
-  renderGrid(false);
-  renderLooks();
-  renderRecent();
   renderBag();
   syncSavedButtons();
+  syncMenu();
   syncAccountButton();
   initAccounts();
-  updateFit();
-  if (!still) $("#hero-title").classList.add("play");
-  requestAnimationFrame(frame);
+  if (!still && $("#hero-title")) $("#hero-title").classList.add("play");
+  // The home page's sections below the campaign photo are drawn just after the first paint, so the
+  // photo shows sooner.
+  const afterPaint = fn => requestAnimationFrame(() => setTimeout(fn, 0));
+  afterPaint(() => {
+    if (tv) { renderChannel(0, false); setRotating(rotating); }
+    renderGrid(false);
+    renderLooks();
+    if (!pdp) renderRecent();
+    updateFit();
+    syncSavedButtons();
+    if (tv || fitStage) requestAnimationFrame(frame);
+  });
 
   // Shopify's order status page can link back with ?ordered=1, which empties the bag after a purchase.
-  if (new URLSearchParams(location.search).has("ordered") && !root.dataset.product) {
+  if (new URLSearchParams(location.search).has("ordered") && IS_HOME) {
     bag = [];
     saveBag();
     // If this device belongs to a signed-in shopper, the empty bag replaces the account's copy too.
@@ -1886,16 +2263,6 @@
     if (ROUTING) { try { history.replaceState(null, "", ROOT); } catch { /* the address keeps ?ordered=1 */ } }
   }
 
-  // A product page (p/<id>/) is the shop with that product's sheet open. Its address is swapped for
-  // the shop's underneath the sheet, so Back closes the sheet instead of leaving the site.
-  const startId = root.dataset.product;
-  if (startId && byId[startId]) {
-    const st = history.state;
-    if (st && st.pd === startId) openProduct(startId, st.colour, { push: false });
-    else {
-      const colour = new URLSearchParams(location.search).get("colour");
-      if (ROUTING) { try { history.replaceState(null, "", ROOT); } catch { /* stay on the product address */ } }
-      openProduct(startId, colour);
-    }
-  }
+  // A product page (p/<id>/) fills in its product, in the colour from ?colour= if there is one.
+  if (pdp && byId[pdp.dataset.id]) openProduct(pdp.dataset.id, new URLSearchParams(location.search).get("colour"));
 })();

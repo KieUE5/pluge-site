@@ -1,4 +1,4 @@
-// The terms, returns and privacy pages, written for a small UK online clothing shop.
+// The terms, returns and privacy pages, written for a small UK online clothing shop run by a sole trader.
 // tools/build-pages.cjs turns these into docs/terms/, docs/returns/ and docs/privacy/, filling in the
 // business details from COMPANY in catalog.js. Anything still empty shows as [square brackets].
 //
@@ -7,16 +7,16 @@
 // whenever you change the wording.
 const POLICY_DATE = "12 October 2026";
 
-module.exports = function policies({ BRAND, COMPANY, SHIP }) {
+module.exports = function policies({ BRAND, COMPANY, SHIP, CONTACT = {} }) {
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   const has = k => Boolean(COMPANY[k] && String(COMPANY[k]).trim());
   const c = (k, placeholder) => has(k) ? esc(COMPANY[k]) : `<span class="todo">[${placeholder}]</span>`;
   const gbp = n => `£${n.toFixed(2)}`;
   const ship = SHIP[Object.keys(SHIP)[0]];
-  const legal = c("legalName", "company name");
+  const trader = c("traderName", "your name");
   const email = has("email") ? `<a href="mailto:${esc(COMPANY.email)}">${esc(COMPANY.email)}</a>` : c("email", "email address");
-  const returnsTo = has("returnsAddress") ? esc(COMPANY.returnsAddress) : c("office", "returns address");
-  const who = `${esc(BRAND)} is a trading name of ${legal}, a company registered in England and Wales (company number ${c("companyNumber", "company number")}). Our registered office is ${c("office", "registered office address")}.${has("vat") ? ` Our VAT number is ${esc(COMPANY.vat)}.` : ""}`;
+  const returnsTo = has("returnsAddress") ? esc(COMPANY.returnsAddress) : c("address", "returns address");
+  const who = `${esc(BRAND)} is a trading name of ${trader}, a sole trader based in the UK. Our business address is ${c("address", "business address")}.${has("vat") ? ` Our VAT number is ${esc(COMPANY.vat)}.` : ""}`;
   const contact = `Email ${email}${has("phone") ? ` or call ${esc(COMPANY.phone)}` : ""}.`;
   const dated = `<p class="legal-date">Last updated ${POLICY_DATE}</p>`;
 
@@ -42,7 +42,7 @@ module.exports = function policies({ BRAND, COMPANY, SHIP }) {
     <p>Some drops are only on sale for a limited time. When a drop closes, its pieces can no longer be ordered.</p>
 
     <h2>Prices and payment</h2>
-    <p>Prices are in pounds sterling and include VAT. The delivery charge is shown before you pay. Payment is taken when you place your order and is handled by our checkout and payment providers; we never see your full card details.</p>
+    <p>Prices are in pounds sterling${has("vat") ? " and include VAT" : ". We aren't registered for VAT, so no VAT is added"}. The delivery charge is shown before you pay. Payment is taken when you place your order and is handled by our checkout and payment providers; we never see your full card details.</p>
 
     <h2>Delivery</h2>
     <p>We deliver to UK addresses only. Each piece takes ${ship.make[0]}–${ship.make[1]} working days to make before it's posted. If your order has several pieces, they may arrive in separate parcels.</p>
@@ -93,7 +93,7 @@ module.exports = function policies({ BRAND, COMPANY, SHIP }) {
     <h2 id="cancellation-form">Cancellation form</h2>
     <p>Complete and return this form only if you want to cancel your order. Copy it into an email, or print it and post it.</p>
     <div class="legal-form">
-      <p>To: ${legal}, ${returnsTo}. Email: ${email}</p>
+      <p>To: ${trader}, trading as ${esc(BRAND)}, ${returnsTo}. Email: ${email}</p>
       <p>I/We* hereby give notice that I/We* cancel my/our* contract of sale of the following goods:</p>
       <p class="blank">&nbsp;</p>
       <p>Ordered on* / received on*:</p>
@@ -120,7 +120,7 @@ module.exports = function policies({ BRAND, COMPANY, SHIP }) {
         <tr><th scope="row">You place an order</th><td>Name, delivery and billing address, email, phone number if you give it, what you bought, and payment status</td><td>To take payment, deliver your order, handle returns and keep the records the law requires. Basis: our contract with you, and legal obligation for tax records.</td></tr>
         <tr><th scope="row">You create an account</th><td>Name, email, a password (stored scrambled, so nobody can read it), your bag, saved and recently viewed pieces, and the orders placed with your email</td><td>To run your account, keep your bag on all your devices and show your orders. Basis: our contract with you.</td></tr>
         <tr><th scope="row">You sign up for drop alerts</th><td>Email address, and when and how you agreed</td><td>To email you about new drops. Basis: your consent, which you can withdraw at any time with the unsubscribe link in every email.</td></tr>
-        <tr><th scope="row">You contact us</th><td>Your message and contact details</td><td>To reply and sort out your question. Basis: our legitimate interest in helping customers.</td></tr>
+        <tr><th scope="row">You contact us, by email or with the contact form</th><td>Your name, email, order number if you give it, and your message</td><td>To reply and sort out your question. Basis: our legitimate interest in helping customers.</td></tr>
       </tbody>
     </table>
     <p>We don't use analytics, advertising trackers or social media pixels on this website, and we don't sell your information.</p>
@@ -140,7 +140,8 @@ module.exports = function policies({ BRAND, COMPANY, SHIP }) {
       <li><strong>Supabase</strong>, which hosts customer accounts and stores the account information above for us.</li>
       <li><strong>Payment providers</strong> (such as Shopify Payments and PayPal), which handle your payment and check it for fraud.</li>
       <li><strong>Printful</strong>, which makes your order and posts it to you, so it needs your name, delivery address and what you bought. Its delivery partners need your name and address too.</li>
-      <li><strong>Our email provider</strong>, if you sign up for drop alerts.</li>
+      <li><strong>Our email providers</strong>, which carry the emails we send and receive, including drop alerts if you sign up.</li>${CONTACT.formEndpoint ? `
+      <li><strong>Formspree</strong>, which delivers messages sent with our contact form to our inbox.</li>` : ""}
       <li><strong>GitHub</strong>, which hosts this website and keeps short-term server logs, including IP addresses, for security.</li>
       <li>Our accountants and advisers, and HMRC or the police when the law requires it.</li>
     </ul>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- page-meta: tools/build-pages.cjs writes this block, here and on every product page -->
+  <!-- page-meta: tools/build-pages.cjs writes this block, here and on every other page -->
   <title>PLUGE · Drop 01: Test Pattern</title>
   <meta name="description" content="PLUGE makes streetwear to order. Drop 01, Test Pattern: hoodies, tees, joggers and accessories printed with TV colour bars.">
   <link rel="canonical" href="https://kieue5.github.io/pluge-site/">
@@ -58,18 +58,19 @@
 
 <header class="site-head" id="site-head">
   <div class="wrap head-row">
-    <a class="logo" href="#top" aria-label="PLUGE home">
+    <button class="icon-btn menu-btn" type="button" id="menu-open" aria-haspopup="dialog" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/></svg></button>
+    <a class="logo" href="./" aria-label="PLUGE home">
       <span class="logo-bars" aria-hidden="true">
         <i style="background:#C8C8C8"></i><i style="background:#E9DF00"></i><i style="background:#00CFD6"></i><i style="background:#00BF3A"></i><i style="background:#D000C4"></i><i style="background:#E3141C"></i><i style="background:#1426E0"></i>
       </span>
       <span>PLUGE</span>
     </a>
     <nav class="nav" aria-label="Main">
-      <a href="#shop">Shop</a>
-      <a href="#lookbook">Lookbook</a>
-      <a href="#fit">The fit</a>
-      <a href="#drop-02">Drop 02</a>
-      <a href="#about">About</a>
+      <a href="./#shop">Shop</a>
+      <a href="./#lookbook">Lookbook</a>
+      <a href="./#drop-02">Drop 02</a>
+      <a href="about/">About</a>
+      <a href="faq/">Help</a>
     </nav>
     <div class="head-tools">
       <button class="motion-btn" type="button" id="motion-toggle"><span class="motion-ico" aria-hidden="true"></span><span class="motion-txt">Pause motion</span></button>
@@ -81,68 +82,30 @@
   </div>
 </header>
 
+<!-- home: tools/build-pages.cjs swaps this main element for the content of every other page -->
 <main id="top">
-  <section class="hero wrap" aria-labelledby="hero-title">
-    <div class="tv" id="tv" role="region" aria-roledescription="carousel" aria-label="Drop 01 on TV">
-      <div class="tv-strip">
-        <div class="tv-left">
-          <button class="tv-btn tv-play" type="button" id="ch-play" data-state="playing" aria-label="Stop channel rotation"><span class="play-ico" aria-hidden="true"></span></button>
-          <span class="tv-brand">PLUGE</span>
-        </div>
-        <div class="pips" id="pips" role="group" aria-label="Channels"></div>
-        <div class="tv-btns">
-          <button class="tv-btn" type="button" id="ch-prev">CH −<span class="vh"> (previous channel)</span></button>
-          <button class="tv-btn" type="button" id="ch-next">CH +<span class="vh"> (next channel)</span></button>
-          <span class="led" aria-hidden="true"></span>
-        </div>
-      </div>
-      <div class="screen grain" id="screen">
-        <div class="channel" id="channel" role="group" aria-roledescription="slide" aria-live="off"></div>
-        <span class="fx fx-scan"></span>
-        <span class="fx fx-vignette"></span>
-        <span class="fx fx-glare"></span>
-        <span class="fx fx-roll"></span>
-        <canvas class="static" id="static" width="320" height="180" aria-hidden="true"></canvas>
-        <span class="osd osd-ch" id="osd-ch" aria-hidden="true">CH 01</span>
-        <span class="osd box osd-air" aria-hidden="true"><span class="tally"></span>Drop 01 on air</span>
-        <span class="osd box osd-tc" id="timecode" aria-hidden="true">TC 00:00:00:00</span>
-        <button class="screen-hit" type="button" id="screen-hit" aria-label="Shop Drop 01"></button>
-      </div>
-    </div>
-    <div class="hero-copy">
+  <section class="hero" aria-labelledby="hero-title">
+    <picture>
+      <source media="(orientation: portrait)" srcset="assets/img/lookbook/hero-tall-342.webp 342w, assets/img/lookbook/hero-tall-683.webp 683w" sizes="100vw" width="683" height="1024">
+      <img class="hero-img" src="assets/img/lookbook/look-01-1536.webp" srcset="assets/img/lookbook/look-01-768.webp 768w, assets/img/lookbook/look-01-1536.webp 1536w" sizes="100vw" width="1536" height="1024" fetchpriority="high" alt="Seen from behind, a model in the black Test Card Hoodie faces a wall of old TVs showing colour bars, the same bars printed across the hoodie's back.">
+    </picture>
+    <div class="hero-copy wrap">
       <p class="eyebrow">Drop 01 · Out now · 8 pieces</p>
       <h1 class="hero-title wide glitch" id="hero-title">Test Pattern</h1>
-      <div class="hero-row">
-        <p>Hoodies, tees and caps printed with the colour bars a telly shows when the signal drops. Every piece is made to order, just for you.</p>
-        <div class="ctas">
-          <a class="btn primary" href="#shop">Shop Drop 01</a>
-          <a class="btn" href="#drop-02" id="hero-drop-cta">Drop 02 countdown</a>
-        </div>
+      <p class="hero-sub">Streetwear printed with the colour bars a telly shows when the signal drops. Every piece is made to order, just for you.</p>
+      <div class="ctas">
+        <a class="btn primary" href="#shop">Shop Drop 01</a>
+        <a class="btn ghost" href="#lookbook">See the lookbook</a>
       </div>
     </div>
-  </section>
-
-  <section class="mq" id="mq" aria-hidden="true">
-    <div class="mq-row" id="mq-a"></div>
-    <div class="mq-row" id="mq-b"></div>
-  </section>
-
-  <section class="specs" aria-label="Fabric and delivery">
-    <div class="wrap">
-      <ul>
-        <li><span class="spec-num">270<small>GSM</small></span><p>Hoodie and crew fleece, soft on the inside</p></li>
-        <li><span class="spec-num">207<small>GSM</small></span><p>Garment-dyed, ring-spun cotton tees</p></li>
-        <li><span class="spec-num">£75</span><p>Spend this for free UK delivery</p></li>
-        <li><span class="spec-num">14<small>DAYS</small></span><p>To change your mind after delivery</p></li>
-      </ul>
-    </div>
+    <a class="hero-tag" href="p/test-card-hoodie/"><span class="hero-tag-k">In the photo</span><span class="hero-tag-n">Test Card Hoodie</span><span class="hero-tag-p" id="hero-tag-price">£55</span></a>
   </section>
 
   <section class="shop wrap" id="shop" aria-label="Shop Drop 01">
     <div class="shop-head">
       <div>
-        <p class="eyebrow">Drop 01</p>
-        <h2 class="wide glitch glitch-hover" id="shop-title">Test Pattern</h2>
+        <p class="eyebrow">Drop 01 · Test Pattern</p>
+        <h2 class="wide glitch glitch-hover" id="shop-title">Shop the drop</h2>
       </div>
       <span class="result-count" id="result-count" role="status">8 pieces</span>
     </div>
@@ -185,7 +148,7 @@
           <p class="eyebrow">Lookbook · Drop 01</p>
           <h2 class="wide glitch glitch-hover" id="look-title">On air</h2>
         </div>
-        <p class="look-note">Drop 01 out in the world, plus two studio fit checks with the model's height and size. Pick a look to shop the pieces in it; the cargo trousers are styling only.</p>
+        <p class="look-note">Drop 01 out in the world, plus two studio fit checks with the model's height and size. Pick a look to shop it. The trousers in the photos are styling only.</p>
       </div>
       <div class="looks" id="looks"></div>
       <p class="look-fine">Preview images made with AI. They'll be replaced by a real shoot before launch.</p>
@@ -209,6 +172,44 @@
           <span class="mat-label a">Flat lay · Drop 01</span>
           <span class="mat-label b">Grid 48mm</span>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="onair" id="about" aria-labelledby="about-title">
+    <div class="wrap onair-grid">
+      <div class="tv" id="tv" role="region" aria-roledescription="carousel" aria-label="Drop 01 on TV">
+        <div class="tv-strip">
+          <div class="tv-left">
+            <button class="tv-btn tv-play" type="button" id="ch-play" data-state="playing" aria-label="Stop channel rotation"><span class="play-ico" aria-hidden="true"></span></button>
+            <span class="tv-brand">PLUGE</span>
+          </div>
+          <div class="pips" id="pips" role="group" aria-label="Channels"></div>
+          <div class="tv-btns">
+            <button class="tv-btn" type="button" id="ch-prev">CH −<span class="vh"> (previous channel)</span></button>
+            <button class="tv-btn" type="button" id="ch-next">CH +<span class="vh"> (next channel)</span></button>
+            <span class="led" aria-hidden="true"></span>
+          </div>
+        </div>
+        <div class="screen grain" id="screen">
+          <div class="channel" id="channel" role="group" aria-roledescription="slide" aria-live="off"></div>
+          <span class="fx fx-scan"></span>
+          <span class="fx fx-vignette"></span>
+          <span class="fx fx-glare"></span>
+          <span class="fx fx-roll"></span>
+          <canvas class="static" id="static" width="320" height="180" aria-hidden="true"></canvas>
+          <span class="osd osd-ch" id="osd-ch" aria-hidden="true">CH 01</span>
+          <span class="osd box osd-air" aria-hidden="true"><span class="tally"></span>Drop 01 on air</span>
+          <span class="osd box osd-tc" id="timecode" aria-hidden="true">TC 00:00:00:00</span>
+          <button class="screen-hit" type="button" id="screen-hit" aria-label="Shop Drop 01"></button>
+        </div>
+      </div>
+      <div class="onair-copy">
+        <p class="eyebrow">About PLUGE</p>
+        <h2 class="wide" id="about-title">Named after the darkest bars on the test card</h2>
+        <p>PLUGE stands for picture line-up generation equipment: the strip of near-black bars that engineers used to set a screen's black level. Each drop takes one thing from broadcast TV and builds a handful of pieces around it.</p>
+        <p>Nothing is printed until you order it, so there's no pile of unsold stock. Flick through the channels to see Drop 01 on air.</p>
+        <a class="btn" href="about/">Our story</a>
       </div>
     </div>
   </section>
@@ -253,59 +254,53 @@
       </div>
     </div>
   </section>
-
-  <section class="about wrap" id="about" aria-labelledby="about-title">
-    <div class="about-grid">
-      <div>
-        <p class="eyebrow">About</p>
-        <h2 class="wide" id="about-title">Named after the darkest bars on the test card</h2>
-      </div>
-      <div>
-        <p>PLUGE stands for picture line-up generation equipment: the strip of near-black bars in the corner of a test card that engineers used to set a screen's black level. PLUGE makes streetwear to order, and each drop takes one thing from broadcast TV and builds a handful of pieces around it.</p>
-        <p>Nothing is printed until you order it, so there's no pile of unsold stock. Each piece is made for you and posted straight to your door.</p>
-      </div>
-    </div>
-  </section>
 </main>
+<!-- /home -->
 
 <footer class="foot">
   <div class="wrap">
     <div class="foot-grid">
       <div class="foot-brand">
         <p class="foot-mark wide">PLUGE</p>
+        <p class="foot-tag">Streetwear printed with the colour bars a telly shows when the signal drops. Made to order, one drop at a time.</p>
+        <!-- social: tools/build-pages.cjs fills this in from SOCIAL in catalog.js -->
+        <ul class="social"><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/></svg><span>Instagram</span> <small>soon</small></span></li><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3.5v11.2a3.3 3.3 0 1 1-3.3-3.3"/><path d="M13.5 3.5c.4 2.7 2.4 4.6 5 4.8"/></svg><span>TikTok</span> <small>soon</small></span></li></ul>
+        <!-- /social -->
       </div>
       <div>
         <h3>Shop</h3>
         <ul id="foot-cats"></ul>
       </div>
       <div id="delivery">
-        <h3>Delivery &amp; returns</h3>
+        <h3>Help</h3>
         <ul>
-          <li>UK delivery: £4.99, free over £75</li>
-          <li>Made to order, usually with you in 5–10 working days</li>
+          <li><a href="faq/">FAQ</a></li>
+          <li><a href="contact/">Contact us</a></li>
+          <li><a href="returns/">Delivery and returns</a></li>
+          <li>UK delivery £4.99, free over £75</li>
           <li>14 days to change your mind</li>
-          <li><a href="returns/">Returns and refunds</a></li>
         </ul>
       </div>
       <div>
-        <h3>Next drop</h3>
+        <h3>PLUGE</h3>
         <ul>
-          <li>Drop 02: Interference</li>
-          <li>Fri 30 Oct, 18:00 GMT</li>
-          <li><a href="#notify">Get the alert</a></li>
+          <li><a href="about/">Our story</a></li>
+          <li><a href="./#lookbook">Lookbook</a></li>
+          <li><a href="./#drop-02">Drop 02: Fri 30 Oct</a></li>
+          <li><a href="./#notify">Get the drop alert</a></li>
         </ul>
       </div>
     </div>
     <div class="foot-small">
       <!-- company: tools/build-pages.cjs fills this in from COMPANY in catalog.js -->
-      <span class="foot-legal">PLUGE is a trading name of [company name], registered in England and Wales, company no. [company number]. Registered office: [address]. Contact: pluge.shop@outlook.com.</span>
+      <span class="foot-legal">PLUGE is a trading name of [your name], a sole trader. Business address: [business address]. Email: <a href="mailto:pluge.shop@outlook.com">pluge.shop@outlook.com</a>. Prices in GBP.</span>
       <!-- /company -->
       <nav class="foot-links" aria-label="Policies"><a href="terms/">Terms</a><a href="returns/">Returns</a><a href="privacy/">Privacy and cookies</a></nav>
-      <span>Prices in GBP and include VAT</span>
     </div>
   </div>
 </footer>
 
+<!-- quickview: the product pop-up, only on the home page -->
 <dialog class="sheet" id="pd" aria-labelledby="pd-name">
   <button class="x" type="button" id="pd-close" aria-label="Close">×</button>
   <div class="pd">
@@ -348,6 +343,7 @@
         <button class="btn save-big" type="button" id="pd-save" aria-pressed="false" aria-label="Save"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg></button>
       </div>
       <p class="pd-returns">14 days to change your mind · <button class="link-btn" type="button" id="pd-returns-link">Delivery and returns</button></p>
+      <a class="pd-full" id="pd-full" href="./">Full details and photos <span aria-hidden="true">→</span></a>
       <div>
         <details open id="pd-fabric-wrap">
           <summary>Fabric &amp; fit</summary>
@@ -389,6 +385,8 @@
     </form>
   </div>
 </dialog>
+
+<!-- /quickview -->
 
 <dialog class="drawer" id="bag" aria-labelledby="bag-title">
   <div class="bag">
@@ -463,6 +461,42 @@
       <button class="x" type="button" id="account-close" aria-label="Close account">×</button>
     </div>
     <div class="acct-body" id="acct-body"></div>
+  </div>
+</dialog>
+
+<dialog class="drawer menu" id="menu" aria-labelledby="menu-title">
+  <div class="bag menu-box">
+    <div class="bag-head">
+      <h2 class="wide" id="menu-title">Menu</h2>
+      <button class="x" type="button" id="menu-close" aria-label="Close menu">×</button>
+    </div>
+    <div class="menu-body">
+      <nav aria-label="Shop">
+        <p class="eyebrow">Shop Drop 01</p>
+        <ul class="menu-big" id="menu-cats"></ul>
+      </nav>
+      <nav aria-label="Explore">
+        <ul class="menu-big">
+          <li><a href="./#lookbook">Lookbook</a></li>
+          <li><a href="./#fit">The fit</a></li>
+          <li><a href="./#drop-02">Drop 02</a></li>
+        </ul>
+        <ul class="menu-small">
+          <li><a href="about/">Our story</a></li>
+          <li><a href="faq/">FAQ</a></li>
+          <li><a href="contact/">Contact us</a></li>
+          <li><a href="returns/">Delivery and returns</a></li>
+        </ul>
+      </nav>
+      <div class="menu-tools">
+        <button class="menu-tool" type="button" id="menu-account"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c.8-4 3.8-6.2 7.5-6.2s6.7 2.2 7.5 6.2"/></svg><span id="menu-account-txt">Sign in</span></button>
+        <button class="menu-tool" type="button" id="menu-saved"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg><span id="menu-saved-txt">Saved</span></button>
+        <button class="menu-tool" type="button" id="menu-motion"><span class="motion-ico" aria-hidden="true"></span><span class="motion-txt">Pause motion</span></button>
+      </div>
+      <!-- social: tools/build-pages.cjs fills this in from SOCIAL in catalog.js -->
+      <ul class="social"><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/></svg><span>Instagram</span> <small>soon</small></span></li><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3.5v11.2a3.3 3.3 0 1 1-3.3-3.3"/><path d="M13.5 3.5c.4 2.7 2.4 4.6 5 4.8"/></svg><span>TikTok</span> <small>soon</small></span></li></ul>
+      <!-- /social -->
+    </div>
   </div>
 </dialog>
 

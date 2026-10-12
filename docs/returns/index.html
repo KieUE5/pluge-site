@@ -4,22 +4,85 @@
   <meta charset="utf-8">
   <base href="../">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- page-meta: tools/build-pages.cjs writes this block, here and on every other page -->
   <title>Returns and refunds · PLUGE</title>
   <meta name="description" content="Your 14-day right to change your mind, how to send pieces back, and the cancellation form.">
   <link rel="canonical" href="https://kieue5.github.io/pluge-site/returns/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PLUGE">
+  <meta property="og:title" content="Returns and refunds · PLUGE">
+  <meta property="og:description" content="Your 14-day right to change your mind, how to send pieces back, and the cancellation form.">
+  <meta property="og:url" content="https://kieue5.github.io/pluge-site/returns/">
+  <meta property="og:image" content="https://kieue5.github.io/pluge-site/assets/img/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PLUGE: the Test Card Hoodie on a TV screen">
+  <meta name="twitter:card" content="summary_large_image">
+  <!-- /page-meta -->
+  <!-- Preview: keep search engines out until the shop takes real orders. Remove this line at launch. -->
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#0C0C10">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="preload" href="assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/site.css">
+  <script>
+    // Decide motion before first paint: the visitor's saved choice wins, then their OS setting.
+    (function () {
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches, saved = null;
+      try { saved = localStorage.getItem("pluge-motion"); } catch (e) { /* storage blocked */ }
+      document.documentElement.dataset.motion = (saved ? saved === "off" : reduce) ? "off" : "on";
+    })();
+  </script>
 </head>
 <body>
 <a class="skip" href="returns/#main">Skip to content</a>
-<header class="site-head legal-head">
+
+<div class="ticker" role="region" aria-label="Announcements">
+  <div class="ticker-track">
+    <div class="ticker-group">
+      <span>Preview site: not taking orders yet</span>
+      <span>Drop 01: Test Pattern is live</span>
+      <span>Free UK delivery over £75</span>
+      <span>Drop 02 lands Fri 30 Oct, 18:00 GMT</span>
+      <span>Every piece made to order</span>
+    </div>
+    <div class="ticker-group" aria-hidden="true">
+      <span>Preview site: not taking orders yet</span>
+      <span>Drop 01: Test Pattern is live</span>
+      <span>Free UK delivery over £75</span>
+      <span>Drop 02 lands Fri 30 Oct, 18:00 GMT</span>
+      <span>Every piece made to order</span>
+    </div>
+  </div>
+</div>
+
+<header class="site-head" id="site-head">
   <div class="wrap head-row">
-    <a class="logo" href="./" aria-label="PLUGE home"><span class="logo-bars" aria-hidden="true"><i style="background:#C8C8C8"></i><i style="background:#E9DF00"></i><i style="background:#00CFD6"></i><i style="background:#00BF3A"></i><i style="background:#D000C4"></i><i style="background:#E3141C"></i><i style="background:#1426E0"></i></span><span>PLUGE</span></a>
-    <a class="btn" href="./#shop">Back to the shop</a>
+    <button class="icon-btn menu-btn" type="button" id="menu-open" aria-haspopup="dialog" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/></svg></button>
+    <a class="logo" href="./" aria-label="PLUGE home">
+      <span class="logo-bars" aria-hidden="true">
+        <i style="background:#C8C8C8"></i><i style="background:#E9DF00"></i><i style="background:#00CFD6"></i><i style="background:#00BF3A"></i><i style="background:#D000C4"></i><i style="background:#E3141C"></i><i style="background:#1426E0"></i>
+      </span>
+      <span>PLUGE</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="./#shop">Shop</a>
+      <a href="./#lookbook">Lookbook</a>
+      <a href="./#drop-02">Drop 02</a>
+      <a href="about/">About</a>
+      <a href="faq/">Help</a>
+    </nav>
+    <div class="head-tools">
+      <button class="motion-btn" type="button" id="motion-toggle"><span class="motion-ico" aria-hidden="true"></span><span class="motion-txt">Pause motion</span></button>
+      <button class="icon-btn search-btn" type="button" id="search-open" aria-haspopup="dialog" aria-keyshortcuts="/ Control+K Meta+K" aria-label="Search"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span class="icon-txt">Search</span><kbd aria-hidden="true">/</kbd></button>
+      <button class="icon-btn account-btn" type="button" id="account-open" aria-haspopup="dialog" aria-label="Account"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c.8-4 3.8-6.2 7.5-6.2s6.7 2.2 7.5 6.2"/></svg><span class="acct-dot" id="account-dot" hidden></span></button>
+      <button class="icon-btn saved-btn" type="button" id="saved-open" aria-haspopup="dialog" aria-label="Saved, 0 pieces"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg><span class="pip-count" id="saved-count" hidden>0</span></button>
+      <button class="bag-btn" type="button" id="bag-open" aria-haspopup="dialog"><svg class="ico bag-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg><span class="bag-txt">Bag</span> <span class="count" id="bag-count">0</span></button>
+    </div>
   </div>
 </header>
+
 <main class="wrap legal" id="main">
     <h1 class="wide">Returns and refunds</h1>
     <p class="legal-date">Last updated 12 October 2026</p>
@@ -47,7 +110,7 @@
     <h2 id="cancellation-form">Cancellation form</h2>
     <p>Complete and return this form only if you want to cancel your order. Copy it into an email, or print it and post it.</p>
     <div class="legal-form">
-      <p>To: <span class="todo">[company name]</span>, <span class="todo">[returns address]</span>. Email: <a href="mailto:pluge.shop@outlook.com">pluge.shop@outlook.com</a></p>
+      <p>To: <span class="todo">[your name]</span>, trading as PLUGE, <span class="todo">[returns address]</span>. Email: <a href="mailto:pluge.shop@outlook.com">pluge.shop@outlook.com</a></p>
       <p>I/We* hereby give notice that I/We* cancel my/our* contract of sale of the following goods:</p>
       <p class="blank">&nbsp;</p>
       <p>Ordered on* / received on*:</p>
@@ -58,11 +121,183 @@
       <p class="small">* Delete as appropriate</p>
     </div>
 </main>
+
 <footer class="foot">
-  <div class="wrap foot-small">
-    <span class="foot-legal">PLUGE is a trading name of [company name], registered in England and Wales, company no. [company number]. Registered office: [address]. Contact: pluge.shop@outlook.com.</span>
-    <nav class="foot-links" aria-label="Policies"><a href="terms/">Terms of sale</a><a href="returns/">Returns and refunds</a><a href="privacy/">Privacy and cookies</a></nav>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <p class="foot-mark wide">PLUGE</p>
+        <p class="foot-tag">Streetwear printed with the colour bars a telly shows when the signal drops. Made to order, one drop at a time.</p>
+        <!-- social: tools/build-pages.cjs fills this in from SOCIAL in catalog.js -->
+        <ul class="social"><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/></svg><span>Instagram</span> <small>soon</small></span></li><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3.5v11.2a3.3 3.3 0 1 1-3.3-3.3"/><path d="M13.5 3.5c.4 2.7 2.4 4.6 5 4.8"/></svg><span>TikTok</span> <small>soon</small></span></li></ul>
+        <!-- /social -->
+      </div>
+      <div>
+        <h3>Shop</h3>
+        <ul id="foot-cats"></ul>
+      </div>
+      <div id="delivery">
+        <h3>Help</h3>
+        <ul>
+          <li><a href="faq/">FAQ</a></li>
+          <li><a href="contact/">Contact us</a></li>
+          <li><a href="returns/">Delivery and returns</a></li>
+          <li>UK delivery £4.99, free over £75</li>
+          <li>14 days to change your mind</li>
+        </ul>
+      </div>
+      <div>
+        <h3>PLUGE</h3>
+        <ul>
+          <li><a href="about/">Our story</a></li>
+          <li><a href="./#lookbook">Lookbook</a></li>
+          <li><a href="./#drop-02">Drop 02: Fri 30 Oct</a></li>
+          <li><a href="./#notify">Get the drop alert</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-small">
+      <!-- company: tools/build-pages.cjs fills this in from COMPANY in catalog.js -->
+      <span class="foot-legal">PLUGE is a trading name of [your name], a sole trader. Business address: [business address]. Email: <a href="mailto:pluge.shop@outlook.com">pluge.shop@outlook.com</a>. Prices in GBP.</span>
+      <!-- /company -->
+      <nav class="foot-links" aria-label="Policies"><a href="terms/">Terms</a><a href="returns/">Returns</a><a href="privacy/">Privacy and cookies</a></nav>
+    </div>
   </div>
 </footer>
+
+<dialog class="drawer" id="bag" aria-labelledby="bag-title">
+  <div class="bag">
+    <div class="bag-head">
+      <h2 class="wide" id="bag-title">Bag</h2>
+      <button class="x" type="button" id="bag-close" aria-label="Close bag">×</button>
+    </div>
+    <div class="ship" id="ship">
+      <p id="ship-msg"></p>
+      <div class="meter" aria-hidden="true"><span id="ship-bar"></span></div>
+    </div>
+    <ul class="bag-lines" id="bag-lines"></ul>
+    <div class="bag-empty" id="bag-empty" hidden>
+      <p>Your bag is empty.</p>
+      <button class="btn primary" type="button" id="bag-shop">Shop Drop 01</button>
+    </div>
+    <div class="bag-foot" id="bag-foot">
+      <fieldset class="ship-opts">
+        <legend>Delivery</legend>
+        <div class="ship-list" id="ship-list"></div>
+      </fieldset>
+      <dl class="totals">
+        <dt>Subtotal</dt><dd id="t-sub"></dd>
+        <dt>UK delivery</dt><dd id="t-ship"></dd>
+        <dt class="total">Total</dt><dd class="total" id="t-total"></dd>
+      </dl>
+      <p class="ship-fine" id="ship-fine" hidden>You'll confirm delivery and pay on the next page.</p>
+      <button class="btn primary block" type="button" id="checkout">Checkout</button>
+      <button class="btn block" type="button" id="bag-continue">Continue shopping</button>
+      <p class="checkout-note" id="checkout-note" role="status" hidden></p>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="drawer" id="kit" aria-labelledby="kit-title">
+  <form class="bag kit" id="kit-form" novalidate>
+    <div class="bag-head">
+      <h2 class="wide" id="kit-title">Shop the look</h2>
+      <button class="x" type="button" id="kit-close" aria-label="Close">×</button>
+    </div>
+    <div class="kit-intro" id="kit-intro"></div>
+    <ul class="bag-lines kit-lines" id="kit-lines"></ul>
+    <div class="bag-foot">
+      <dl class="totals">
+        <dt class="total">Total</dt><dd class="total" id="kit-total"></dd>
+      </dl>
+      <p class="kit-msg" id="kit-msg" role="status"></p>
+      <button class="btn primary block" type="submit" id="kit-add">Add to bag</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="drawer" id="saved" aria-labelledby="saved-title">
+  <div class="bag">
+    <div class="bag-head">
+      <h2 class="wide" id="saved-title">Saved</h2>
+      <button class="x" type="button" id="saved-close" aria-label="Close saved pieces">×</button>
+    </div>
+    <ul class="bag-lines" id="saved-lines"></ul>
+    <div class="bag-empty" id="saved-empty" hidden>
+      <p>Nothing saved yet. Tap the heart on any piece to keep it here.</p>
+      <button class="btn primary" type="button" id="saved-shop">Shop Drop 01</button>
+    </div>
+    <p class="saved-fine">Saved pieces are kept on this device only.</p>
+  </div>
+</dialog>
+
+<dialog class="drawer" id="account" aria-labelledby="account-title">
+  <div class="bag account">
+    <div class="bag-head">
+      <h2 class="wide" id="account-title">Account</h2>
+      <button class="x" type="button" id="account-close" aria-label="Close account">×</button>
+    </div>
+    <div class="acct-body" id="acct-body"></div>
+  </div>
+</dialog>
+
+<dialog class="drawer menu" id="menu" aria-labelledby="menu-title">
+  <div class="bag menu-box">
+    <div class="bag-head">
+      <h2 class="wide" id="menu-title">Menu</h2>
+      <button class="x" type="button" id="menu-close" aria-label="Close menu">×</button>
+    </div>
+    <div class="menu-body">
+      <nav aria-label="Shop">
+        <p class="eyebrow">Shop Drop 01</p>
+        <ul class="menu-big" id="menu-cats"></ul>
+      </nav>
+      <nav aria-label="Explore">
+        <ul class="menu-big">
+          <li><a href="./#lookbook">Lookbook</a></li>
+          <li><a href="./#fit">The fit</a></li>
+          <li><a href="./#drop-02">Drop 02</a></li>
+        </ul>
+        <ul class="menu-small">
+          <li><a href="about/">Our story</a></li>
+          <li><a href="faq/">FAQ</a></li>
+          <li><a href="contact/">Contact us</a></li>
+          <li><a href="returns/">Delivery and returns</a></li>
+        </ul>
+      </nav>
+      <div class="menu-tools">
+        <button class="menu-tool" type="button" id="menu-account"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c.8-4 3.8-6.2 7.5-6.2s6.7 2.2 7.5 6.2"/></svg><span id="menu-account-txt">Sign in</span></button>
+        <button class="menu-tool" type="button" id="menu-saved"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg><span id="menu-saved-txt">Saved</span></button>
+        <button class="menu-tool" type="button" id="menu-motion"><span class="motion-ico" aria-hidden="true"></span><span class="motion-txt">Pause motion</span></button>
+      </div>
+      <!-- social: tools/build-pages.cjs fills this in from SOCIAL in catalog.js -->
+      <ul class="social"><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/></svg><span>Instagram</span> <small>soon</small></span></li><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3.5v11.2a3.3 3.3 0 1 1-3.3-3.3"/><path d="M13.5 3.5c.4 2.7 2.4 4.6 5 4.8"/></svg><span>TikTok</span> <small>soon</small></span></li></ul>
+      <!-- /social -->
+    </div>
+  </div>
+</dialog>
+
+<dialog class="palette" id="search" aria-label="Search the shop">
+  <div class="palette-box">
+    <div class="palette-in">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+      <input id="search-in" type="text" role="combobox" aria-label="Search pieces" aria-expanded="true" aria-controls="search-list" aria-autocomplete="list" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Search hoodies, olive, tees…">
+      <button class="esc-btn" type="button" id="search-close">Esc<span class="vh"> to close search</span></button>
+    </div>
+    <ul class="palette-list" id="search-list" role="listbox" aria-label="Results"></ul>
+    <p class="palette-empty" id="search-empty" hidden></p>
+    <p class="palette-help" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></p>
+    <p class="vh" id="search-status" role="status"></p>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden>
+  <span id="toast-msg"></span>
+  <button class="btn" type="button" id="toast-view">View bag</button>
+</div>
+<p class="vh" id="live" aria-live="polite"></p>
+
+<script src="assets/js/catalog.js" defer></script>
+<script src="assets/js/site.js" defer></script>
 </body>
 </html>

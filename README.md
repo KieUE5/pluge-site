@@ -14,10 +14,18 @@ Customers can create an **account** (stored in a [Supabase](https://supabase.com
 
 ## What the site does
 
-- **Shop:** a channel-surfing TV hero, the Drop 01 grid with category and size filters, and a "build the fit" flat lay that assembles as you scroll.
-- **Product sheet:** drag to turn the garment, hover or double-tap to zoom, colour and size pickers, a size guide with cm/in and a size finder, made-to-order delivery estimates, and an **on-model photo** with the model's height and size.
-- **Product pages:** every product has its own address, like [`/p/test-card-hoodie/`](https://kieue5.github.io/pluge-site/p/test-card-hoodie/), with its own title, share image and Google product data. Opening a product changes the address, and Back closes it.
-- **Lookbook:** six photos (four on location, two studio fit checks). "Shop" on any look adds its pieces to the bag in one go once you've picked sizes. "Shop the fit" does the same for the flat lay.
+- **Home page:** opens on the full-screen campaign photo (the TV wall) with a Shop button. The Drop 01 grid comes straight after, with category and size filters. Then the lookbook, a "build the fit" flat lay that assembles as you scroll, the channel-surfing TV beside the brand story, and the Drop 02 countdown.
+- **Product pages:** every product has a full page, like [`/p/test-card-hoodie/`](https://kieue5.github.io/pluge-site/p/test-card-hoodie/). It has:
+  - big photos: front, back and on-model, which swipe on phones and open full screen to zoom;
+  - colour and size pickers, with a sticky Add to bag bar once the button scrolls out of view;
+  - tabs for Details, Size & fit (size guide in cm/in and a size finder) and Delivery & returns;
+  - the model's height and size, made-to-order delivery estimates, and "Complete the look" with a one-step "Shop the full look".
+
+  Each page has its own title, share image, and Google product and breadcrumb data. Product cards link to these pages.
+- **Quick view:** on a computer, hovering a product card shows a Quick view button that opens the product in a pop-up. You can drag to turn the garment and zoom in, then go to the full page from there.
+- **Lookbook:** five photos (three on location, two studio fit checks), plus the campaign photo at the top of the home page. "Shop" on any look adds its pieces to the bag in one go once you've picked sizes. "Shop the fit" does the same for the flat lay.
+- **On phones:** a slide-out menu (categories, pages, account, saved and the motion switch), a header with just the menu, logo, search and bag, filter chips that scroll sideways, and buttons at least 44px tall.
+- **Brand pages:** [Our story](https://kieue5.github.io/pluge-site/about/), an [FAQ](https://kieue5.github.io/pluge-site/faq/) (delivery prices and times come from `catalog.js`, so they stay in step), and [Contact us](https://kieue5.github.io/pluge-site/contact/) with a message form. Instagram and TikTok links sit in the footer and the menu.
 - **Accounts:** sign up, sign in, reset a forgotten password. The account shows:
   - your orders, with a tracking link;
   - your bag and saved pieces, on any device;
@@ -26,7 +34,7 @@ Customers can create an **account** (stored in a [Supabase](https://supabase.com
   Shoppers can also change their password, sign out, or delete the account themselves.
 - **Saved and recently viewed:** the heart on any piece keeps it in the Saved drawer, and a recently viewed row sits under the grid. Without an account they stay on that device.
 - **Search:** the magnifier, or press <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on a Mac). It understands colours ("grey"), sizes ("XL") and everyday words ("trousers", "jumper", "hat").
-- **Policies:** terms of sale, returns (with the official cancellation form) and privacy and cookies, at `/terms/`, `/returns/` and `/privacy/`.
+- **Policies:** terms of sale, returns (with the official cancellation form) and privacy and cookies, at `/terms/`, `/returns/` and `/privacy/`. Every page shares the same header, footer, bag, search and account panel.
 - **Motion:** "Pause motion" in the header stops every animation, and the site starts paused for visitors whose device asks for reduced motion.
 
 ## The range
@@ -104,7 +112,19 @@ The site matches each Shopify product by name (or URL handle), then by colour an
 
 Supabase's free plan suits a new shop. Free projects can be paused after a week without any activity, so check the project's dashboard if you go quiet for a while.
 
-### 4. Test, then launch
+### 4. Your details, social links and the contact form
+
+These need no accounts beyond what you already have. Fill them in at the top of `catalog.js`:
+
+- **`COMPANY`:** as a sole trader selling under the name PLUGE, UK law says the site must show your own name and a postal address where documents can reach you. Use a virtual business address (from around £5–£20 a month) so your home address stays private. A PO box doesn't count. You can also add a separate `returnsAddress`.
+- **`SOCIAL`:** your Instagram and TikTok handles, without the @. Until then the footer shows them as "soon".
+- **`CONTACT`:** the contact form works straight away by opening the customer's email app with their message filled in, addressed to the shop email. To receive messages without that step:
+  1. Make a free form at [formspree.io](https://formspree.io), signing up with `pluge.shop@outlook.com`.
+  2. Paste its address (like `https://formspree.io/f/abcdwxyz`) into `formEndpoint`.
+
+  The privacy page then names Formspree automatically.
+
+### 5. Test, then launch
 
 1. Turn on test mode in Shopify (**Settings → Payments**). Then, on the live site:
    - create an account;
@@ -125,30 +145,32 @@ Supabase's free plan suits a new shop. Free projects can be paused after a week 
 
 | Path | What it is |
 |---|---|
-| `docs/index.html` | The page |
-| `docs/assets/js/catalog.js` | **Products, prices, colours, sizes, delivery, the lookbook, your business details, and the Shopify and Supabase settings.** Edit this to change the shop. |
-| `docs/assets/js/site.js` | Page behaviour, including checkout and accounts |
+| `docs/index.html` | The home page, and the template for every other page: its header, footer and drawers are shared, and the part between `<!-- home -->` and `<!-- /home -->` is swapped for each page's own content |
+| `docs/assets/js/catalog.js` | **Products, prices, colours, sizes, delivery, the lookbook, your business details, social handles, the contact form, and the Shopify and Supabase settings.** Edit this to change the shop. |
+| `docs/assets/js/site.js` | Behaviour for every page: the home page, product pages, quick view, bag, checkout, accounts, menu and contact form |
 | `docs/assets/js/vendor/` | Supabase's JavaScript library (MIT licence), loaded only when accounts are switched on |
 | `docs/assets/css/site.css` | Styles |
 | `docs/p/<product>/index.html` | Product pages. Made by `tools/build-pages.cjs`, so don't edit them by hand. |
+| `docs/about/`, `docs/faq/`, `docs/contact/` | Brand pages, made by `tools/build-pages.cjs` from the text in `tools/pages.cjs` |
 | `docs/terms/`, `docs/returns/`, `docs/privacy/` | Policy pages, made by `tools/build-pages.cjs` from `tools/policies.cjs` |
 | `docs/sitemap.xml`, `docs/robots.txt` | Made by `tools/build-pages.cjs` |
 | `docs/assets/img/products/` | Product photos for each product, colour and view, at 1000×1200 and 500×600 |
-| `docs/assets/img/lookbook/` | Lookbook photos at full and half width |
+| `docs/assets/img/lookbook/` | Lookbook photos at full and half width, and `hero-tall`, the campaign photo cut to portrait for phones |
 | `docs/assets/img/og/` | Share images for each product (what appears when a link is posted) |
 | `docs/assets/fonts/` | Self-hosted Archivo and IBM Plex Mono (SIL Open Font License, licences included) |
 | `tools/print-files/` | Print-ready artwork for Printful, with a guide to where each file goes |
 | `tools/supabase/` | The accounts database setup (`schema.sql`) and the Shopify orders function |
 | `tools/` | Scripts that build the photos, print files, product pages and share images |
-| `.github/workflows/rebuild-pages.yml` | Rebuilds the product and policy pages automatically after you push |
+| `.github/workflows/rebuild-pages.yml` | Rebuilds the product, brand and policy pages automatically after you push |
 
 ### Common edits
 
-Edit `docs/index.html` or `catalog.js` (on your computer, or with the pencil icon on GitHub) and push. A GitHub workflow then rebuilds the product pages, policy pages and footer, commits them as "Rebuild product and policy pages", and republishes the site, usually within two minutes. You can watch it under the repository's **Actions** tab.
+Edit `docs/index.html`, `catalog.js` or the page texts in `tools/` (on your computer, or with the pencil icon on GitHub) and push. A GitHub workflow then rebuilds every page from them, commits them as "Rebuild product and policy pages", and republishes the site, usually within two minutes. You can watch it under the repository's **Actions** tab.
 
 To rebuild on your own computer instead, run `node tools/build-pages.cjs` (it needs Node, nothing else). `node tools/build-pages.cjs --check` tells you whether anything is out of date.
 
-- **Add your business details:** fill in `COMPANY` at the top of `catalog.js`: company name and number, registered office, returns address, VAT number and email. They appear in the footer and on the terms, returns and privacy pages.
+- **Add your business details:** fill in `COMPANY` at the top of `catalog.js`: your name, business address, returns address if different, VAT number if you register, and email. They appear in the footer and on the terms, returns, privacy and contact pages.
+- **Change the About or FAQ text:** edit `tools/pages.cjs`. The policy texts are in `tools/policies.cjs`.
 - **Change a price or add a colour:** edit the product in `catalog.js`, and make the same change in Printful. A new colour also needs photos (see below).
 - **Rename the brand:** change `BRAND` in `catalog.js`, then replace "PLUGE" in:
   - `docs/index.html` and `docs/404.html`;
@@ -169,7 +191,7 @@ npm run build-images       # product photos: docs/assets/img/products/*.webp
 npm run build-print-files  # artwork for Printful: tools/print-files/*.png
 npm run build-lookbook     # docs/assets/img/lookbook/*.webp from tools/lookbook/
 npm run build-meta         # share images (site and per product) and the iPhone icon
-npm run build-pages        # product and policy pages, sitemap and robots.txt
+npm run build-pages        # product, brand and policy pages, sitemap and robots.txt
 ```
 
 - **Print positions and colours** for the product photos live in `tools/recipes.cjs`. The print files are listed in `tools/build-print-files.cjs`.
@@ -178,20 +200,23 @@ npm run build-pages        # product and policy pages, sitemap and robots.txt
 
 ## Speed and accessibility
 
-Checked on 12 October 2026 against a local copy of the site:
+Checked on 12 October 2026 against a local copy of the site, compressed the way GitHub Pages serves it:
 
-| | Performance | Accessibility | Best practices |
+| Lighthouse | Performance | Accessibility | Best practices |
 |---|---|---|---|
-| Lighthouse, phone | 94 | 100 | 100 |
-| Lighthouse, desktop | 100 | 100 | 100 |
+| Home page, phone | 96 | 100 | 100 |
+| Product page, phone | 93 | 100 | 100 |
+| Our story, phone | 98 | 100 | 100 |
+| Home and product page, desktop | 99–100 | 100 | 100 |
 
-- On a phone, the main content appears in about 3 seconds, and nothing shifts while the page loads. The SEO score stays low until the `noindex` preview tag comes off.
-- [axe](https://github.com/dequelabs/axe-core) found no WCAG 2.2 AA problems in 36 scans. Each of these was checked in light and dark mode, on desktop and phone:
-  - the page
-  - product sheet and on-model view
-  - bag, saved and shop-the-look
-  - search
-  - account panel
+- On a phone, the campaign photo appears in about 2.6 seconds, and nothing shifts while the page loads. The sections further down are drawn just after it. The SEO score stays low until the `noindex` preview tag comes off.
+- [axe](https://github.com/dequelabs/axe-core) found no WCAG 2.2 AA problems in 74 scans. Each of these was checked in light and dark mode, on desktop and phone:
+  - the home page, before and after use
+  - quick view and its on-model view
+  - bag, saved, shop-the-look, search and the account panel
+  - the phone menu
+  - a product page with its tabs, buy bar and full-screen photos
+  - Our story, FAQ, Contact us and the three policy pages
 - Everything works by keyboard. Dialogs trap focus and return it when they close.
 
 ## Before taking real orders
@@ -199,7 +224,8 @@ Checked on 12 October 2026 against a local copy of the site:
 - [ ] **Shopify, Printful and Supabase** set up as in [Go live](#go-live), and a test order placed end to end.
 - [ ] **Samples.** Order a sample of every piece, check the print, fit and size charts against `catalog.js`, and replace the AI photos with photos of the real pieces.
 - [ ] **Account emails.** Connect a proper email service to Supabase (step 3.5) so sign-up and password emails always arrive.
-- [ ] **Company details.** Fill in `COMPANY` in `catalog.js`. Until then the footer and policy pages show [square brackets].
+- [ ] **Your details.** Fill in your name and a virtual business address in `COMPANY` in `catalog.js` (see [step 4](#4-your-details-social-links-and-the-contact-form)). Until then the footer, policy and contact pages show [square brackets].
+- [ ] **Social and contact.** Add your Instagram and TikTok handles, and a Formspree form if you'd like messages without the email app step.
 - [x] **Policy pages.** Terms, returns (14 days, customer pays return postage) and privacy are written for print-on-demand and accounts. Have a solicitor read them, and add your email provider by name to the privacy page once drop alerts are connected.
 - [ ] **Drop alerts.** Connect an email tool that records consent and puts an unsubscribe link in every email, then replace the preview message in `site.js`.
 - [ ] **Honest selling.** With print-on-demand nothing sells out, so don't show "low stock" or "selling fast". A countdown must match a real deadline (DMCC Act 2024 / CMA guidance).
