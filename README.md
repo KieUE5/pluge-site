@@ -8,9 +8,14 @@ PLUGE is a **print-on-demand** shop. Nothing is made until someone buys it:
 2. [Printful](https://www.printful.com) prints or embroiders the piece and posts it to them.
 3. You never hold stock.
 
-Customers can create an **account** (stored in a [Supabase](https://supabase.com) database) that keeps their bag and saved pieces on every device and lists their orders.
+A [Supabase](https://supabase.com) database is the shop's back end:
+- **Customer accounts:** shoppers keep their bag, saved pieces and sizes on every device and see their orders.
+- **Reviews:** star ratings and written reviews, which you approve before they appear.
+- **Sign-ups and messages:** drop alerts, back-in-stock requests and contact messages are saved.
 
-> **Preview status:** the shop isn't taking orders yet. Checkout, accounts and the drop-alert sign-up show a "preview" message, and search engines are told not to index the site. To go live, follow [Go live](#go-live) below.
+You manage all of it on a private **admin page**.
+
+> **Preview status:** the shop isn't taking orders yet. Until Shopify and Supabase are connected, checkout, accounts, reviews and the sign-up forms show a "preview" message. Search engines are told not to index the site. To go live, follow [Go live](#go-live) below.
 
 ## What the site does
 
@@ -22,14 +27,31 @@ Customers can create an **account** (stored in a [Supabase](https://supabase.com
   - the model's height and size, made-to-order delivery estimates, and "Complete the look" with a one-step "Shop the full look".
 
   Each page has its own title, share image, and Google product and breadcrumb data. Product cards link to these pages.
-- **Quick view:** on a computer, hovering a product card shows a Quick view button that opens the product in a pop-up. You can drag to turn the garment and zoom in, then go to the full page from there.
+- **Product cards:**
+  - colour swatches that switch the photo;
+  - star ratings;
+  - on a computer, hovering shows **quick add** (one click per size straight to the bag) and **Quick view**, a pop-up where you can turn the garment and zoom in.
+
+  Opening a card makes its photo grow into the product page, in browsers that support page transitions.
+- **Reviews:** signed-in customers rate and review pieces. Reviews from people who ordered the piece are marked "verified buyer". Each product page shows the average, a fit summary (runs small, true to size or runs large) and the reviews you've approved. Ratings are added to the product data Google reads.
+- **Sizes:** the first time a shopper adds a top, joggers or socks to the bag, the site remembers the size and picks it for them next time. They can change it in their account.
+- **Sharing and suggestions:** "Share your list" in the Saved drawer makes a link that opens those pieces for someone else. The bag suggests pieces that go with what's in it, and product pages end with "You might also like".
+- **Discount codes:** shoppers add a code in the bag, or follow a link like `https://kieue5.github.io/pluge-site/?discount=WELCOME10`. Shopify's checkout checks the code and takes it off. Make the code in Shopify first (**Discounts**).
+- **Sign-ups:**
+  - drop alerts, from the Drop 02 section and the footer of every page;
+  - "email me when it's back" for a sold-out size;
+  - the contact form.
+
+  All three are saved to the database for the admin page.
 - **Lookbook:** five photos (three on location, two studio fit checks), plus the campaign photo at the top of the home page. "Shop" on any look adds its pieces to the bag in one go once you've picked sizes. "Shop the fit" does the same for the flat lay.
 - **On phones:** a slide-out menu (categories, pages, account, saved and the motion switch), a header with just the menu, logo, search and bag, filter chips that scroll sideways, and buttons at least 44px tall.
 - **Brand pages:** [Our story](https://kieue5.github.io/pluge-site/about/), an [FAQ](https://kieue5.github.io/pluge-site/faq/) (delivery prices and times come from `catalog.js`, so they stay in step), and [Contact us](https://kieue5.github.io/pluge-site/contact/) with a message form. Instagram and TikTok links sit in the footer and the menu.
+- **Admin page:** [`/admin/`](https://kieue5.github.io/pluge-site/admin/), for the shop account only. See [Running the shop](#running-the-shop-the-admin-page).
 - **Accounts:** sign up, sign in, reset a forgotten password. The account shows:
   - your orders, with a tracking link;
-  - your bag and saved pieces, on any device;
-  - your email, filled in at checkout.
+  - your bag, saved pieces and sizes, on any device;
+  - your email, filled in at checkout;
+  - for the shop account, a link to the admin page.
 
   Shoppers can also change their password, sign out, or delete the account themselves.
 - **Saved and recently viewed:** the heart on any piece keeps it in the Saved drawer, and a recently viewed row sits under the grid. Without an account they stay on that device.
@@ -93,18 +115,20 @@ You'll set up three free or low-cost accounts in this order: Shopify, then Print
 
 The site matches each Shopify product by name (or URL handle), then by colour and size, so keep Printful's colour and size names the same as `catalog.js`. If something doesn't match, the browser console says which product. Once connected, the site uses Shopify's prices and availability, so what's shown is what's charged.
 
-### 3. Supabase (customer accounts)
+### 3. Supabase (accounts, reviews, sign-ups and the admin page)
 
 1. Create a free project at [supabase.com](https://supabase.com), in the London region.
-2. **SQL Editor → New query:** paste in `tools/supabase/schema.sql` and click **Run**. This creates:
-   - the tables for saved bags and orders;
-   - the rules that keep each customer's data private;
-   - the delete-my-account function.
+2. **SQL Editor → New query:** paste in `tools/supabase/schema.sql` and click **Run**. It's safe to run again whenever the file changes. It creates:
+   - the tables for accounts, orders, reviews, drop alerts, back-in-stock requests and contact messages;
+   - the rules that keep each customer's data private, so visitors can add a sign-up or message but only admins can read them;
+   - the delete-my-account and admin functions;
+   - the admin list, which starts with `pluge.shop@outlook.com`.
 3. **Authentication → URL Configuration:** set **Site URL** to `https://kieue5.github.io/pluge-site/` (or your own domain) and add the same address under **Redirect URLs**.
 4. **Authentication → Sign In / Providers → Email:** leave **Confirm email** switched on. It stops anyone seeing orders for an email address they don't own.
 5. **Authentication → Emails:** Supabase's built-in email is only for testing (it sends a handful of messages an hour). Before launch, connect a proper email service under **SMTP Settings**, and put your brand on the email templates.
-6. **Project Settings → API:** copy the **Project URL** and the **anon public** key into `ACCOUNTS` in `catalog.js`. The anon key is meant to be public; the database rules protect the data.
-7. **Orders in accounts:**
+6. **Project Settings → API:** copy the **Project URL** and the **anon public** key into `ACCOUNTS` in `catalog.js`. The anon key is meant to be public; the database rules protect the data. Never put the `service_role` key on the site.
+7. **Make yourself the admin:** on the live site, create an account with `pluge.shop@outlook.com` and confirm it from the email. Then the account panel shows "Open the admin page". To add someone else, run `insert into public.admins (email) values ('their.email@example.com');` in the SQL Editor.
+8. **Orders in accounts and on the admin page:**
    1. In Supabase, go to **Edge Functions → Deploy a new function → Via editor**. Name it `shopify-orders`, paste in `tools/supabase/functions/shopify-orders/index.ts`, and deploy.
    2. In that function's settings, turn off **Verify JWT** (Shopify proves itself with its own signature instead).
    3. In Shopify, go to **Settings → Notifications → Webhooks** and create two JSON webhooks, **Order creation** and **Order update**. Point both at `https://<your-project>.supabase.co/functions/v1/shopify-orders`.
@@ -118,11 +142,14 @@ These need no accounts beyond what you already have. Fill them in at the top of 
 
 - **`COMPANY`:** as a sole trader selling under the name PLUGE, UK law says the site must show your own name and a postal address where documents can reach you. Use a virtual business address (from around £5–£20 a month) so your home address stays private. A PO box doesn't count. You can also add a separate `returnsAddress`.
 - **`SOCIAL`:** your Instagram and TikTok handles, without the @. Until then the footer shows them as "soon".
-- **`CONTACT`:** the contact form works straight away by opening the customer's email app with their message filled in, addressed to the shop email. To receive messages without that step:
-  1. Make a free form at [formspree.io](https://formspree.io), signing up with `pluge.shop@outlook.com`.
-  2. Paste its address (like `https://formspree.io/f/abcdwxyz`) into `formEndpoint`.
+- **`CONTACT`:** the contact form works in one of three ways:
+  - **With nothing set up**, it opens the customer's email app with their message filled in, addressed to the shop email.
+  - **Once Supabase is connected**, messages are saved and appear on the admin page.
+  - **To get them in your inbox instead**:
+    1. Make a free form at [formspree.io](https://formspree.io), signing up with `pluge.shop@outlook.com`.
+    2. Paste its address (like `https://formspree.io/f/abcdwxyz`) into `formEndpoint`.
 
-  The privacy page then names Formspree automatically.
+    The privacy page then names Formspree automatically.
 
 ### 5. Test, then launch
 
@@ -133,6 +160,19 @@ These need no accounts beyond what you already have. Fill them in at the top of 
 2. Work through [Before taking real orders](#before-taking-real-orders).
 
 > The checkout and accounts code was tested thoroughly against simulated Shopify and Supabase services, not real ones, because those can't be reached from where the site was built. Do the test order before announcing anything.
+
+## Running the shop: the admin page
+
+Sign in as the shop account and open `/admin/` (or **Account → Open the admin page**). The tabs:
+
+- **Overview:** orders, sales, customer accounts, sign-ups and what's waiting for you.
+- **Orders:** the latest orders from Shopify. Manage them in Shopify and Printful.
+- **Messages:** contact form messages. Reply by email, then mark each one answered.
+- **Drop alerts:** everyone who asked for drop emails, with the wording they agreed to. Download the list as a spreadsheet and import it into an email tool (Shopify Email, Mailchimp or Brevo all work). The tool adds the unsubscribe link every marketing email needs. Remove anyone who asks to be taken off.
+- **Back in stock:** who's waiting for which size. Email them when it's back, then mark the group as emailed.
+- **Reviews:** approve or reject new reviews. **By law, approve every genuine review, good or bad.** Only reject one that breaks the rules in the terms (for example, personal details, abuse, or not about the piece). Never reject a review for being negative, and never write or pay for reviews.
+
+Messages are only kept for the admin page when there's no Formspree form. With `CONTACT.formEndpoint` set, they go to your inbox instead.
 
 ## Returns with print-on-demand
 
@@ -147,7 +187,9 @@ These need no accounts beyond what you already have. Fill them in at the top of 
 |---|---|
 | `docs/index.html` | The home page, and the template for every other page: its header, footer and drawers are shared, and the part between `<!-- home -->` and `<!-- /home -->` is swapped for each page's own content |
 | `docs/assets/js/catalog.js` | **Products, prices, colours, sizes, delivery, the lookbook, your business details, social handles, the contact form, and the Shopify and Supabase settings.** Edit this to change the shop. |
-| `docs/assets/js/site.js` | Behaviour for every page: the home page, product pages, quick view, bag, checkout, accounts, menu and contact form |
+| `docs/assets/js/site.js` | Behaviour for every page: the home page, product pages, quick view, bag, checkout, accounts, reviews, sizes, sign-ups, menu and contact form |
+| `docs/assets/js/admin.js` | The admin page, loaded on `/admin/` only |
+| `docs/admin/` | The admin page, made by `tools/build-pages.cjs`. Never indexed by search engines. |
 | `docs/assets/js/vendor/` | Supabase's JavaScript library (MIT licence), loaded only when accounts are switched on |
 | `docs/assets/css/site.css` | Styles |
 | `docs/p/<product>/index.html` | Product pages. Made by `tools/build-pages.cjs`, so don't edit them by hand. |
@@ -159,7 +201,7 @@ These need no accounts beyond what you already have. Fill them in at the top of 
 | `docs/assets/img/og/` | Share images for each product (what appears when a link is posted) |
 | `docs/assets/fonts/` | Self-hosted Archivo and IBM Plex Mono (SIL Open Font License, licences included) |
 | `tools/print-files/` | Print-ready artwork for Printful, with a guide to where each file goes |
-| `tools/supabase/` | The accounts database setup (`schema.sql`) and the Shopify orders function |
+| `tools/supabase/` | The database setup (`schema.sql`: tables, privacy rules, admin functions) and the Shopify orders function |
 | `tools/` | Scripts that build the photos, print files, product pages and share images |
 | `.github/workflows/rebuild-pages.yml` | Rebuilds the product, brand and policy pages automatically after you push |
 
@@ -204,19 +246,22 @@ Checked on 12 October 2026 against a local copy of the site, compressed the way 
 
 | Lighthouse | Performance | Accessibility | Best practices |
 |---|---|---|---|
-| Home page, phone | 96 | 100 | 100 |
+| Home page, phone | 97 | 100 | 100 |
 | Product page, phone | 93 | 100 | 100 |
 | Our story, phone | 98 | 100 | 100 |
-| Home and product page, desktop | 99–100 | 100 | 100 |
+| Home and product page, desktop | 100 | 100 | 100 |
 
 - On a phone, the campaign photo appears in about 2.6 seconds, and nothing shifts while the page loads. The sections further down are drawn just after it. The SEO score stays low until the `noindex` preview tag comes off.
-- [axe](https://github.com/dequelabs/axe-core) found no WCAG 2.2 AA problems in 74 scans. Each of these was checked in light and dark mode, on desktop and phone:
+- [axe](https://github.com/dequelabs/axe-core) found no WCAG 2.2 AA problems in 138 scans. Each of these was checked in light and dark mode, on desktop and phone:
   - the home page, before and after use
   - quick view and its on-model view
   - bag, saved, shop-the-look, search and the account panel
   - the phone menu
   - a product page with its tabs, buy bar and full-screen photos
   - Our story, FAQ, Contact us and the three policy pages
+  - reviews and the review form, back-in-stock requests, your sizes, the bag's suggestions and discount code, a shared list, quick add, the footer sign-up
+  - every tab of the admin page
+- The database rules were tested on a real Postgres database, with stand-ins for Supabase's sign-in system. For example: visitors can sign up but can't read the lists, shoppers can't approve their own reviews, and only the shop account opens the admin page. The site was then run in a browser against that database for every feature above.
 - Everything works by keyboard. Dialogs trap focus and return it when they close.
 
 ## Before taking real orders
@@ -225,9 +270,10 @@ Checked on 12 October 2026 against a local copy of the site, compressed the way 
 - [ ] **Samples.** Order a sample of every piece, check the print, fit and size charts against `catalog.js`, and replace the AI photos with photos of the real pieces.
 - [ ] **Account emails.** Connect a proper email service to Supabase (step 3.5) so sign-up and password emails always arrive.
 - [ ] **Your details.** Fill in your name and a virtual business address in `COMPANY` in `catalog.js` (see [step 4](#4-your-details-social-links-and-the-contact-form)). Until then the footer, policy and contact pages show [square brackets].
-- [ ] **Social and contact.** Add your Instagram and TikTok handles, and a Formspree form if you'd like messages without the email app step.
+- [ ] **Social and contact.** Add your Instagram and TikTok handles, and a Formspree form if you'd like messages in your inbox rather than on the admin page.
+- [ ] **Reviews.** Check the admin page regularly and approve genuine reviews, good or bad (DMCC Act 2024).
 - [x] **Policy pages.** Terms, returns (14 days, customer pays return postage) and privacy are written for print-on-demand and accounts. Have a solicitor read them, and add your email provider by name to the privacy page once drop alerts are connected.
-- [ ] **Drop alerts.** Connect an email tool that records consent and puts an unsubscribe link in every email, then replace the preview message in `site.js`.
+- [ ] **Drop alerts.** Sign-ups are saved once Supabase is connected. To send the emails, import the admin page's spreadsheet into an email tool that adds an unsubscribe link to every email, and name that tool in the privacy page (`tools/policies.cjs`).
 - [ ] **Honest selling.** With print-on-demand nothing sells out, so don't show "low stock" or "selling fast". A countdown must match a real deadline (DMCC Act 2024 / CMA guidance).
 - [ ] **Search engines.** Remove `<meta name="robots" content="noindex">` from `docs/index.html`, and take the preview line out of the ticker and the note under the lookbook. The pages rebuild when you push.
 - [ ] **Brand name.** Web searches on 12 October 2026 found no clothing brand called PLUGE. The nearest were a US trade mark "THE PLUG" for clothing and the New York label Plugged NYC. That isn't a register search: before launch, search "PLUGE" in class 25 on the [UK IPO register](https://trademarks.ipo.gov.uk/ipo-tmtext) (free, a couple of minutes), and consider filing your own application.

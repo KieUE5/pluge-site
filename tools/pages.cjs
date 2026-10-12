@@ -1,7 +1,7 @@
 // The About, FAQ and Contact pages. tools/build-pages.cjs puts each one inside the site's header and
 // footer at docs/about/, docs/faq/ and docs/contact/. Delivery prices, times and care notes come from
 // catalog.js, so they stay in step with the shop.
-module.exports = function pages({ BRAND, COMPANY, SHIP, CARE, CONTACT = {} }) {
+module.exports = function pages({ BRAND, COMPANY, SHIP, CARE, CONTACT = {}, ACCOUNTS = {} }) {
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   const has = k => Boolean(COMPANY[k] && String(COMPANY[k]).trim());
   const c = (k, placeholder) => has(k) ? esc(COMPANY[k]) : `<span class="todo">[${placeholder}]</span>`;
@@ -73,7 +73,8 @@ module.exports = function pages({ BRAND, COMPANY, SHIP, CARE, CONTACT = {} }) {
       ["How does made to order work?", `<p>Nothing is printed until you order it. Our print partner makes your piece, usually within ${ship.make[0]}–${ship.make[1]} working days, then posts it straight to you. It means we don't throw away unsold stock, and it's why delivery takes a little longer than a warehouse would.</p>`],
       ["How do I pay?", `<p>You pay on our secure checkout, run by Shopify, by card or with the wallet options it shows you, such as Apple Pay or Google Pay. We never see your full card details.</p>`],
       ["Can I change or cancel my order?", `<p>Email ${email} as soon as you can with your order number. We can change or cancel it until it goes into production, which often starts within a few hours. After that, you can still return it within 14 days of delivery.</p>`],
-      ["Do I need an account to order?", `<p>No. An account keeps your bag and saved pieces on all your devices and shows your orders, but you can check out without one.</p>`],
+      ["Do I need an account to order?", `<p>No. An account keeps your bag, saved pieces and sizes on all your devices and shows your orders, but you can check out without one.</p>`],
+      ["Where do I enter a discount code?", `<p>In your bag, under Add a discount code, or at checkout. If you followed a link with a code in it, we've saved it for you and it comes off at checkout.</p>`],
     ] },
     { id: "delivery", title: "Delivery", items: [
       ["How much is delivery?", `<p>UK delivery is ${gbp(ship.fee)}, or free when your order is ${gbp(ship.freeOver)} or more.</p>`],
@@ -90,11 +91,13 @@ module.exports = function pages({ BRAND, COMPANY, SHIP, CARE, CONTACT = {} }) {
       ["How do your clothes fit?", `<p>Hoodies, crews and tees are a classic relaxed fit: take your usual size, or one size up for an oversized look. Joggers are relaxed and tapered, so take your usual size.</p>`],
       ["Where's the size guide?", `<p>On every product page, under Size &amp; fit. There's also a size finder: measure a top you already like across the chest and it suggests your size.</p>`],
       ["What size is the model wearing?", `<p>Product pages show the model's height and size next to their photos, where we have them.</p>`],
+      ["Can the site remember my size?", `<p>Yes. The first time you add a top, joggers or socks to your bag, we remember that size and pick it for you next time. You can change your sizes in your account.</p>`],
     ] },
     { id: "care", title: "Products and care", items: [
       ["How do I wash my pieces?", `<p>Hoodies, crews, tees and joggers: ${esc(careLine("cotton"))}</p><p>Caps: ${esc(careLine("cap"))} Beanies: ${esc(careLine("knit"))} Socks: ${esc(careLine("sock"))}</p>`],
       ["Why does my tee look slightly different from the photo?", `<p>Our tees are garment-dyed, which makes them soft from the first wear, and each one takes the dye a little differently. Screens show colours differently too.</p>`],
-      ["Will sold-out pieces come back?", `<p>Most Drop 01 pieces are made to order, so they rarely sell out. Drops can close, though, so sign up for the drop alert to hear about new pieces first.</p>`],
+      ["Will sold-out pieces come back?", `<p>Most Drop 01 pieces are made to order, so they rarely sell out. If a size does, choose it on the product page and leave your email, and we'll tell you if it comes back. Drops can close, though, so sign up for the drop alert to hear about new pieces first.</p>`],
+      ["How do reviews work?", `<p>Sign in, open a product page and choose Write a review. We read every review before it goes up, and publish genuine ones whether they're good or bad. Reviews from people who've ordered that piece are marked "verified buyer".</p>`],
     ] },
     { id: "account", title: "Your account", items: [
       ["How do I reset my password?", `<p>Open Account and choose Forgot your password? We'll email you a link to set a new one.</p>`],
@@ -159,7 +162,7 @@ module.exports = function pages({ BRAND, COMPANY, SHIP, CARE, CONTACT = {} }) {
         </div>
         <label class="field" for="c-msg">Message<textarea id="c-msg" name="message" maxlength="4000" required></textarea></label>
         <div class="hp" aria-hidden="true"><label for="c-web">Leave this empty</label><input id="c-web" name="_gotcha" tabindex="-1" autocomplete="off"></div>
-        <p class="fine">We only use your details to reply. See <a href="privacy/">Privacy and cookies</a>.${CONTACT.formEndpoint ? "" : " Sending opens your email app with your message ready to go."}</p>
+        <p class="fine">We only use your details to reply. See <a href="privacy/">Privacy and cookies</a>.${CONTACT.formEndpoint || ACCOUNTS.supabaseUrl ? "" : ' <span id="contact-app-note">Sending opens your email app with your message ready to go.</span>'}</p>
         <div><button class="btn primary" type="submit" id="contact-send">Send message</button></div>
         <p class="form-msg" id="contact-msg" role="status"></p>
       </form>

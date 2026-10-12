@@ -1,4 +1,5 @@
 # Only read by search engines when the site is on its own domain.
 User-agent: *
 Allow: /
+Disallow: /pluge-site/admin/
 Sitemap: https://kieue5.github.io/pluge-site/sitemap.xml

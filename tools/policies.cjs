@@ -61,6 +61,9 @@ module.exports = function policies({ BRAND, COMPANY, SHIP, CONTACT = {} }) {
     </ul>
     <p>Email us with your order number and a photo of the problem, including any printing or embroidery fault. We'll replace or refund it, and you won't pay to send anything back.</p>
 
+    <h2>Reviews</h2>
+    <p>Signed-in customers can review pieces. Reviews must be your own honest experience of the piece, and mustn't include anyone's personal details, offensive content or links. We read every review before it appears. We publish genuine reviews whether they're good or bad, and only hold one back if it breaks these rules. "Verified buyer" means the reviewer has ordered that piece from us. We don't pay for reviews or offer anything in return for them.</p>
+
     <h2>Our responsibility to you</h2>
     <p>We're responsible for loss or damage you suffer that is a foreseeable result of us breaking these terms or failing to use reasonable care. We're not responsible for loss that wasn't foreseeable, or for business losses. Nothing in these terms limits our responsibility for death or personal injury caused by our negligence, for fraud, or for breaking your legal rights as a consumer.</p>
 
@@ -120,7 +123,10 @@ module.exports = function policies({ BRAND, COMPANY, SHIP, CONTACT = {} }) {
         <tr><th scope="row">You place an order</th><td>Name, delivery and billing address, email, phone number if you give it, what you bought, and payment status</td><td>To take payment, deliver your order, handle returns and keep the records the law requires. Basis: our contract with you, and legal obligation for tax records.</td></tr>
         <tr><th scope="row">You create an account</th><td>Name, email, a password (stored scrambled, so nobody can read it), your bag, saved and recently viewed pieces, and the orders placed with your email</td><td>To run your account, keep your bag on all your devices and show your orders. Basis: our contract with you.</td></tr>
         <tr><th scope="row">You sign up for drop alerts</th><td>Email address, and when and how you agreed</td><td>To email you about new drops. Basis: your consent, which you can withdraw at any time with the unsubscribe link in every email.</td></tr>
+        <tr><th scope="row">You ask us to tell you when a size is back</th><td>Email address, and the piece, colour and size</td><td>To email you once if it comes back. Basis: your request (consent).</td></tr>
+        <tr><th scope="row">You write a review</th><td>The name you choose to show, your rating, review, the size you got and how it fits, linked to your account; and whether you've ordered that piece</td><td>To check it and show it on the site, marked "verified buyer" if you've ordered the piece. Basis: your consent. Your review is public once approved; your email never is.</td></tr>
         <tr><th scope="row">You contact us, by email or with the contact form</th><td>Your name, email, order number if you give it, and your message</td><td>To reply and sort out your question. Basis: our legitimate interest in helping customers.</td></tr>
+        <tr><th scope="row">You use the site</th><td>Your usual sizes, if you add something to your bag or set them in your account</td><td>To pick your size for you on product pages. Basis: our legitimate interest in making the shop easy to use.</td></tr>
       </tbody>
     </table>
     <p>We don't use analytics, advertising trackers or social media pixels on this website, and we don't sell your information.</p>
@@ -130,14 +136,15 @@ module.exports = function policies({ BRAND, COMPANY, SHIP, CONTACT = {} }) {
     <ul>
       <li>your bag, so it's still there when you come back;</li>
       <li>the pieces you've saved, and the ones you've recently viewed;</li>
+      <li>your usual sizes, and any discount code you've entered;</li>
       <li>whether you've paused the site's motion.</li>
     </ul>
-    <p>If you sign in, it also keeps a sign-in token there so you stay signed in, and your bag, saved and recently viewed pieces are copied to your account. Otherwise none of this is sent to us. You can delete it at any time by signing out or clearing this site's data in your browser settings. When you check out, our checkout provider (Shopify) sets cookies needed to take payment; its cookie notice applies there.</p>
+    <p>If you sign in, it also keeps a sign-in token there so you stay signed in, and your bag, saved and recently viewed pieces and your sizes are copied to your account. Otherwise none of this is sent to us. You can delete it at any time by signing out or clearing this site's data in your browser settings. When you check out, our checkout provider (Shopify) sets cookies needed to take payment; its cookie notice applies there.</p>
 
     <h2>Who we share it with</h2>
     <ul>
       <li><strong>Shopify</strong>, which runs our checkout and stores order details for us.</li>
-      <li><strong>Supabase</strong>, which hosts customer accounts and stores the account information above for us.</li>
+      <li><strong>Supabase</strong>, which hosts our database: customer accounts, reviews, drop alert sign-ups, back-in-stock requests and messages sent with the contact form.</li>
       <li><strong>Payment providers</strong> (such as Shopify Payments and PayPal), which handle your payment and check it for fraud.</li>
       <li><strong>Printful</strong>, which makes your order and posts it to you, so it needs your name, delivery address and what you bought. Its delivery partners need your name and address too.</li>
       <li><strong>Our email providers</strong>, which carry the emails we send and receive, including drop alerts if you sign up.</li>${CONTACT.formEndpoint ? `
@@ -152,6 +159,8 @@ module.exports = function policies({ BRAND, COMPANY, SHIP, CONTACT = {} }) {
       <li>Order records: six years after the end of the financial year of the order, as tax law requires.</li>
       <li>Accounts: until you delete yours, which you can do yourself from the account panel. Order records stay for six years, as above.</li>
       <li>Drop alert sign-ups: until you unsubscribe.</li>
+      <li>Back-in-stock requests: until we've emailed you, or 12 months, whichever is sooner.</li>
+      <li>Reviews: while they're on the site. You can ask us to remove yours at any time, and deleting your account deletes them.</li>
       <li>Messages: up to two years after we last hear from you.</li>
     </ul>
 

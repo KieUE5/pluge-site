@@ -36,6 +36,10 @@
       var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches, saved = null;
       try { saved = localStorage.getItem("pluge-motion"); } catch (e) { /* storage blocked */ }
       document.documentElement.dataset.motion = (saved ? saved === "off" : reduce) ? "off" : "on";
+      // Page transitions are skipped while motion is paused.
+      var skip = function (e) { if (e.viewTransition && document.documentElement.dataset.motion === "off") e.viewTransition.skipTransition(); };
+      addEventListener("pageswap", skip);
+      addEventListener("pagereveal", skip);
     })();
   </script>
 </head>
@@ -65,9 +69,7 @@
   <div class="wrap head-row">
     <button class="icon-btn menu-btn" type="button" id="menu-open" aria-haspopup="dialog" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/></svg></button>
     <a class="logo" href="./" aria-label="PLUGE home">
-      <span class="logo-bars" aria-hidden="true">
-        <i style="background:#C8C8C8"></i><i style="background:#E9DF00"></i><i style="background:#00CFD6"></i><i style="background:#00BF3A"></i><i style="background:#D000C4"></i><i style="background:#E3141C"></i><i style="background:#1426E0"></i>
-      </span>
+      <svg class="logo-mark" viewBox="0 0 28 22" aria-hidden="true"><rect width="28" height="22" rx="4" fill="#0C0C10"/><g class="lm-bars"><rect x="2.00" y="2" width="3.48" height="13" fill="#C8C8C8"/><rect x="5.43" y="2" width="3.48" height="13" fill="#E9DF00"/><rect x="8.86" y="2" width="3.48" height="13" fill="#00CFD6"/><rect x="12.29" y="2" width="3.48" height="13" fill="#00BF3A"/><rect x="15.71" y="2" width="3.48" height="13" fill="#D000C4"/><rect x="19.14" y="2" width="3.48" height="13" fill="#E3141C"/><rect x="22.57" y="2" width="3.48" height="13" fill="#1426E0"/></g><g><rect x="2.00" y="16" width="3.48" height="4" fill="#1426E0"/><rect x="5.43" y="16" width="3.48" height="4" fill="#101010"/><rect x="8.86" y="16" width="3.48" height="4" fill="#D000C4"/><rect x="12.29" y="16" width="3.48" height="4" fill="#101010"/><rect x="15.71" y="16" width="3.48" height="4" fill="#00CFD6"/><rect x="19.14" y="16" width="3.48" height="4" fill="#101010"/><rect x="22.57" y="16" width="3.48" height="4" fill="#C8C8C8"/></g></svg>
       <span>PLUGE</span>
     </a>
     <nav class="nav" aria-label="Main">
@@ -92,7 +94,7 @@
   <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="./">Home</a></li><li><a href="./?cat=bottoms#shop">Bottoms</a></li><li><span aria-current="page">Static Joggers</span></li></ol></nav>
   <div class="pdp-grid">
     <section class="gallery" aria-label="Photos">
-      <ul class="gal-track" id="gal-track" data-colour="black"><li class="gal-slide"><button class="gal-btn" type="button" data-i="0"><img class="product-img" src="assets/img/products/static-joggers-black-front.webp" srcset="assets/img/products/static-joggers-black-front-sm.webp 500w, assets/img/products/static-joggers-black-front.webp 1000w" sizes="(max-width: 900px) 100vw, 28vw" width="1000" height="1200" alt="Static Joggers in Black, front view" fetchpriority="high" draggable="false"><span class="vh">Open full screen</span></button></li><li class="gal-slide"><button class="gal-btn" type="button" data-i="1"><img class="product-img" src="assets/img/products/static-joggers-black-back.webp" srcset="assets/img/products/static-joggers-black-back-sm.webp 500w, assets/img/products/static-joggers-black-back.webp 1000w" sizes="(max-width: 900px) 100vw, 28vw" width="1000" height="1200" alt="Static Joggers in Black, back view" draggable="false"><span class="vh">Open full screen</span></button></li></ul>
+      <ul class="gal-track" id="gal-track" data-colour="black"><li class="gal-slide"><button class="gal-btn" type="button" data-i="0" style="view-transition-name:p-static-joggers"><img class="product-img" src="assets/img/products/static-joggers-black-front.webp" srcset="assets/img/products/static-joggers-black-front-sm.webp 500w, assets/img/products/static-joggers-black-front.webp 1000w" sizes="(max-width: 900px) 100vw, 28vw" width="1000" height="1200" alt="Static Joggers in Black, front view" fetchpriority="high" draggable="false"><span class="vh">Open full screen</span></button></li><li class="gal-slide"><button class="gal-btn" type="button" data-i="1"><img class="product-img" src="assets/img/products/static-joggers-black-back.webp" srcset="assets/img/products/static-joggers-black-back-sm.webp 500w, assets/img/products/static-joggers-black-back.webp 1000w" sizes="(max-width: 900px) 100vw, 28vw" width="1000" height="1200" alt="Static Joggers in Black, back view" draggable="false"><span class="vh">Open full screen</span></button></li></ul>
       <div class="gal-bar"><div class="gal-dots" id="gal-dots"></div><p class="gal-count" id="gal-count" aria-hidden="true"></p></div>
     </section>
     <form class="pd-info pdp-info" id="pd-form">
@@ -102,6 +104,7 @@
       </div>
       <div class="pd-buy">
         <p class="pd-price" id="pd-price">£48</p>
+        <button class="pd-stars" type="button" id="pd-stars" hidden></button>
         <p class="pd-ship" id="pd-ship">Made to order · UK delivery £4.99, free over £75</p>
       </div>
       <p class="pd-blurb" id="pd-blurb">Fleece joggers with an embroidered colour-bar tab on the left thigh.</p>
@@ -110,7 +113,7 @@
         <div class="swatches" id="pd-swatches"></div>
       </fieldset>
       <div>
-        <div class="size-head"><span class="legend" id="pd-size-label">Size</span><button class="link-btn size-guide-link" type="button" id="pd-guide-link">Size guide</button></div>
+        <div class="size-head"><span class="legend" id="pd-size-label">Size</span><span class="usual" id="pd-usual" hidden></span><button class="link-btn size-guide-link" type="button" id="pd-guide-link">Size guide</button></div>
         <div class="sizes" id="pd-sizes" role="radiogroup" aria-labelledby="pd-size-label"></div>
       </div>
       <p class="stock-note" id="pd-stock" hidden></p>
@@ -119,6 +122,11 @@
       <div class="pd-actions">
         <button class="btn primary block" type="submit" id="pd-add" disabled>Select a size</button>
         <button class="btn save-big" type="button" id="pd-save" aria-pressed="false" aria-label="Save"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg></button>
+      </div>
+      <div class="restock" id="pd-restock" hidden>
+        <label class="field" for="restock-email"><span id="restock-label">Email me when it's back</span><input id="restock-email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com"></label>
+        <button class="btn" type="button" id="restock-go">Notify me</button>
+        <p class="restock-msg" id="restock-msg" role="status"></p>
       </div>
       <p class="pd-returns">14 days to change your mind · <button class="link-btn" type="button" id="pd-returns-link">Delivery and returns</button></p>
       <div class="tabs" id="pd-tabs" role="tablist" aria-label="Product information">
@@ -157,12 +165,26 @@
       </div>
     </form>
   </div>
+  <section class="pdp-section reviews" id="reviews" aria-labelledby="reviews-title">
+    <div class="pdp-section-head">
+      <div><p class="eyebrow">What people say</p><h2 class="wide" id="reviews-title">Reviews</h2></div>
+      <button class="btn" type="button" id="review-write">Write a review</button>
+    </div>
+    <div class="rv-form-wrap" id="rv-form-wrap" hidden></div>
+    <div class="rv-summary" id="rv-summary"></div>
+    <ul class="rv-list" id="rv-list"></ul>
+    <button class="btn" type="button" id="rv-more" hidden>Show more reviews</button>
+  </section>
   <section class="pdp-section" aria-labelledby="pairs-title">
     <div class="pdp-section-head">
       <div><p class="eyebrow">Pairs well with</p><h2 class="wide" id="pairs-title">Complete the look</h2></div>
       <button class="btn" type="button" id="look-kit" aria-haspopup="dialog">Shop the full look</button>
     </div>
     <ul class="grid" id="pd-pairs"><li><a class="card" href="p/test-card-hoodie/"><span class="tilt"><span class="card-media"><img class="product-img" src="assets/img/products/test-card-hoodie-black-front.webp" srcset="assets/img/products/test-card-hoodie-black-front-sm.webp 500w, assets/img/products/test-card-hoodie-black-front.webp 1000w" sizes="(max-width: 900px) 46vw, 31vw" width="1000" height="1200" alt="" loading="lazy" decoding="async" draggable="false"></span></span><span class="card-row"><span class="card-name">Test Card Hoodie</span><span class="card-price">£55</span></span></a></li><li><a class="card" href="p/off-air-tee/"><span class="tilt"><span class="card-media"><img class="product-img" src="assets/img/products/off-air-tee-white-front.webp" srcset="assets/img/products/off-air-tee-white-front-sm.webp 500w, assets/img/products/off-air-tee-white-front.webp 1000w" sizes="(max-width: 900px) 46vw, 31vw" width="1000" height="1200" alt="" loading="lazy" decoding="async" draggable="false"></span></span><span class="card-row"><span class="card-name">Off Air Tee</span><span class="card-price">£30</span></span></a></li><li><a class="card" href="p/signal-socks/"><span class="tilt"><span class="card-media"><img class="product-img" src="assets/img/products/signal-socks-black-front.webp" srcset="assets/img/products/signal-socks-black-front-sm.webp 500w, assets/img/products/signal-socks-black-front.webp 1000w" sizes="(max-width: 900px) 46vw, 31vw" width="1000" height="1200" alt="" loading="lazy" decoding="async" draggable="false"></span></span><span class="card-row"><span class="card-name">Signal Socks</span><span class="card-price">£14</span></span></a></li></ul>
+  </section>
+  <section class="pdp-section" aria-labelledby="also-title">
+    <div class="pdp-section-head"><div><p class="eyebrow">From Drop 01</p><h2 class="wide" id="also-title">You might also like</h2></div></div>
+    <ul class="grid" id="also-grid"><li><a class="card" href="p/channel-00-crew/"><span class="tilt"><span class="card-media"><img class="product-img" src="assets/img/products/channel-00-crew-ash-front.webp" srcset="assets/img/products/channel-00-crew-ash-front-sm.webp 500w, assets/img/products/channel-00-crew-ash-front.webp 1000w" sizes="(max-width: 900px) 46vw, 31vw" width="1000" height="1200" alt="" loading="lazy" decoding="async" draggable="false"></span></span><span class="card-row"><span class="card-name">Channel 00 Crewneck</span><span class="card-price">£50</span></span></a></li><li><a class="card" href="p/colour-bars-tee/"><span class="tilt"><span class="card-media"><img class="product-img" src="assets/img/products/colour-bars-tee-white-front.webp" srcset="assets/img/products/colour-bars-tee-white-front-sm.webp 500w, assets/img/products/colour-bars-tee-white-front.webp 1000w" sizes="(max-width: 900px) 46vw, 31vw" width="1000" height="1200" alt="" loading="lazy" decoding="async" draggable="false"></span></span><span class="card-row"><span class="card-name">Colour Bars Tee</span><span class="card-price">£32</span></span></a></li><li><a class="card" href="p/broadcast-cap/"><span class="tilt"><span class="card-media"><img class="product-img" src="assets/img/products/broadcast-cap-black-front.webp" srcset="assets/img/products/broadcast-cap-black-front-sm.webp 500w, assets/img/products/broadcast-cap-black-front.webp 1000w" sizes="(max-width: 900px) 46vw, 31vw" width="1000" height="1200" alt="" loading="lazy" decoding="async" draggable="false"></span></span><span class="card-row"><span class="card-name">Broadcast Cap</span><span class="card-price">£26</span></span></a></li><li><a class="card" href="p/interference-beanie/"><span class="tilt"><span class="card-media"><img class="product-img" src="assets/img/products/interference-beanie-black-front.webp" srcset="assets/img/products/interference-beanie-black-front-sm.webp 500w, assets/img/products/interference-beanie-black-front.webp 1000w" sizes="(max-width: 900px) 46vw, 31vw" width="1000" height="1200" alt="" loading="lazy" decoding="async" draggable="false"></span></span><span class="card-row"><span class="card-name">Interference Beanie</span><span class="card-price">£22</span></span></a></li></ul>
   </section>
   <section class="recent" id="recent" aria-labelledby="recent-title" hidden>
     <div class="recent-head">
@@ -192,16 +214,25 @@
       <div class="foot-brand">
         <p class="foot-mark wide">PLUGE</p>
         <p class="foot-tag">Streetwear printed with the colour bars a telly shows when the signal drops. Made to order, one drop at a time.</p>
+        <form class="alert-form foot-alert" id="foot-alert" data-list="drops" novalidate>
+          <label for="foot-email">Hear about new drops first</label>
+          <div class="notify-row">
+            <input id="foot-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+            <button class="btn" type="submit">Sign up</button>
+          </div>
+          <label class="consent" for="foot-consent"><input type="checkbox" id="foot-consent" name="consent"> <span>Email me drop alerts from PLUGE. I can unsubscribe at any time.</span></label>
+          <p class="notify-msg" role="status"></p>
+        </form>
         <!-- social: tools/build-pages.cjs fills this in from SOCIAL in catalog.js -->
         <ul class="social"><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/></svg><span>Instagram</span> <small>soon</small></span></li><li><span class="soon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3.5v11.2a3.3 3.3 0 1 1-3.3-3.3"/><path d="M13.5 3.5c.4 2.7 2.4 4.6 5 4.8"/></svg><span>TikTok</span> <small>soon</small></span></li></ul>
         <!-- /social -->
       </div>
       <div>
-        <h3>Shop</h3>
+        <h2>Shop</h2>
         <ul id="foot-cats"></ul>
       </div>
       <div id="delivery">
-        <h3>Help</h3>
+        <h2>Help</h2>
         <ul>
           <li><a href="faq/">FAQ</a></li>
           <li><a href="contact/">Contact us</a></li>
@@ -211,7 +242,7 @@
         </ul>
       </div>
       <div>
-        <h3>PLUGE</h3>
+        <h2>PLUGE</h2>
         <ul>
           <li><a href="about/">Our story</a></li>
           <li><a href="./#lookbook">Lookbook</a></li>
@@ -239,7 +270,13 @@
       <p id="ship-msg"></p>
       <div class="meter" aria-hidden="true"><span id="ship-bar"></span></div>
     </div>
-    <ul class="bag-lines" id="bag-lines"></ul>
+    <div class="bag-scroll" id="bag-scroll">
+      <ul class="bag-lines" id="bag-lines"></ul>
+      <section class="bag-recs" id="bag-recs" aria-labelledby="bag-recs-title" hidden>
+        <h3 class="eyebrow" id="bag-recs-title">Goes with your bag</h3>
+        <ul class="recent-row" id="bag-recs-row"></ul>
+      </section>
+    </div>
     <div class="bag-empty" id="bag-empty" hidden>
       <p>Your bag is empty.</p>
       <button class="btn primary" type="button" id="bag-shop">Shop Drop 01</button>
@@ -249,6 +286,18 @@
         <legend>Delivery</legend>
         <div class="ship-list" id="ship-list"></div>
       </fieldset>
+      <div class="promo" id="promo">
+        <p class="promo-on" id="promo-on" hidden></p>
+        <details class="promo-add" id="promo-add">
+          <summary>Add a discount code</summary>
+          <div class="promo-row">
+            <label class="vh" for="promo-in">Discount code</label>
+            <input id="promo-in" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" placeholder="Code">
+            <button class="btn small" type="button" id="promo-apply">Apply</button>
+          </div>
+          <p class="promo-msg" id="promo-msg" role="status"></p>
+        </details>
+      </div>
       <dl class="totals">
         <dt>Subtotal</dt><dd id="t-sub"></dd>
         <dt>UK delivery</dt><dd id="t-ship"></dd>
@@ -291,7 +340,10 @@
       <p>Nothing saved yet. Tap the heart on any piece to keep it here.</p>
       <button class="btn primary" type="button" id="saved-shop">Shop Drop 01</button>
     </div>
-    <p class="saved-fine">Saved pieces are kept on this device only.</p>
+    <div class="saved-foot" id="saved-foot">
+      <button class="btn block" type="button" id="saved-share">Share your list</button>
+      <p class="saved-fine" id="saved-fine">Saved pieces are kept on this device. Sign in to keep them on every device.</p>
+    </div>
   </div>
 </dialog>
 

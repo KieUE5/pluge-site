@@ -20,9 +20,9 @@ const CHECK = process.argv.includes("--check");
 
 const sandbox = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(DOCS, "assets", "js", "catalog.js"), "utf8"), sandbox);
-const { BRAND, SITE_URL, PRODUCTS, COLOURS, CATS, SHIP, COMPANY, SOCIAL = {}, CONTACT = {}, CARE, GUIDES, LOOKS } = sandbox.window.PLUGE;
+const { BRAND, SITE_URL, PRODUCTS, COLOURS, CATS, SHIP, COMPANY, SOCIAL = {}, CONTACT = {}, ACCOUNTS = {}, CARE, GUIDES, LOOKS } = sandbox.window.PLUGE;
 const policies = require("./policies.cjs")({ BRAND, COMPANY, SHIP, CONTACT });
-const brandPages = require("./pages.cjs")({ BRAND, COMPANY, SHIP, CARE, CONTACT });
+const brandPages = require("./pages.cjs")({ BRAND, COMPANY, SHIP, CARE, CONTACT, ACCOUNTS });
 if (!/^https?:\/\/[^/]+\/(.*\/)?$/.test(SITE_URL)) throw new Error(`SITE_URL in catalog.js must be a full address ending in "/", not "${SITE_URL}"`);
 const BASE_PATH = new URL(SITE_URL).pathname;
 const SHIP1 = SHIP[Object.keys(SHIP)[0]];
@@ -149,6 +149,7 @@ const socialHtml = `<ul class="social">${SOCIALS.map(s => {
 }).join("")}</ul>`;
 
 let template = fs.readFileSync(path.join(DOCS, "index.html"), "utf8");
+const noindexTag = /<meta name="robots" content="noindex">/.test(template);
 for (const [re, what] of [[META_RE, "<!-- page-meta --> ... <!-- /page-meta -->"], [HOME_RE, "<!-- home --> ... <!-- /home -->"], [QUICKVIEW_RE, "<!-- quickview --> ... <!-- /quickview -->"], [COMPANY_RE, "<!-- company --> ... <!-- /company -->"]]) {
   if (!new RegExp(re.source).test(template)) throw new Error(`docs/index.html has lost its ${what} block`);
 }
@@ -188,15 +189,19 @@ function gallery(p, key) {
   const odd = items.length % 2 === 1;
   return `<ul class="gal-track${odd ? " odd" : ""}" id="gal-track" data-colour="${key}">${items.map((it, i) => {
     const sizes = odd && i === 0 ? "(max-width: 900px) 100vw, 56vw" : "(max-width: 900px) 100vw, 28vw";
-    if (it.view) return `<li class="gal-slide"><button class="gal-btn" type="button" data-i="${i}">${art(p, key, it.view, sizes, `${p.name} in ${COLOURS[key].name}, ${it.view} view`, i === 0 ? "high" : i > 1)}<span class="vh">Open full screen</span></button></li>`;
+    const vt = i === 0 ? ` style="view-transition-name:p-${p.id}"` : "";
+    if (it.view) return `<li class="gal-slide"><button class="gal-btn" type="button" data-i="${i}"${vt}>${art(p, key, it.view, sizes, `${p.name} in ${COLOURS[key].name}, ${it.view} view`, i === 0 ? "high" : i > 1)}<span class="vh">Open full screen</span></button></li>`;
     const size = it.look.model && it.look.model.wears[p.id];
     const cap = (size ? `Model is ${it.look.model.height}cm and wears ${size}` : `Look ${it.look.n}: ${it.look.title}`) + (it.colour === key ? "" : ` · Shown in ${COLOURS[it.colour].name}`);
-    return `<li class="gal-slide"><button class="gal-btn" type="button" data-i="${i}">${lookImg(it.look, sizes, i > 1)}<span class="vh">${esc(cap)}. Open full screen</span></button><p class="gal-cap" aria-hidden="true">${esc(cap)}</p></li>`;
+    return `<li class="gal-slide"><button class="gal-btn" type="button" data-i="${i}"${vt}>${lookImg(it.look, sizes, i > 1)}<span class="vh">${esc(cap)}. Open full screen</span></button><p class="gal-cap" aria-hidden="true">${esc(cap)}</p></li>`;
   }).join("")}</ul>`;
 }
 const HEART = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.7-7.5 10.3-7.5 10.3Z"/></svg>`;
 const pairCard = q => `<li><a class="card" href="p/${q.id}/"><span class="tilt"><span class="card-media">${art(q, firstIn(q), "front", "(max-width: 900px) 46vw, 31vw", "", true)}</span></span>` +
   `<span class="card-row"><span class="card-name">${esc(q.name)}</span><span class="card-price">${gbp(q.price)}</span></span></a></li>`;
+
+// The same picks as site.js: the rest of the drop, same category first, leaving out the pairings.
+const alsoLike = p => PRODUCTS.filter(q => q.id !== p.id && !p.pairs.includes(q.id)).sort((a, b) => (b.cat === p.cat) - (a.cat === p.cat)).slice(0, 4);
 
 function productMain(p) {
   const key = firstIn(p);
@@ -215,6 +220,7 @@ function productMain(p) {
       </div>
       <div class="pd-buy">
         <p class="pd-price" id="pd-price">${gbp(p.price)}</p>
+        <button class="pd-stars" type="button" id="pd-stars" hidden></button>
         <p class="pd-ship" id="pd-ship">Made to order · ${esc(SHIP1.name)} £${SHIP1.fee.toFixed(2)}, free over ${gbp(SHIP1.freeOver)}</p>
       </div>
       <p class="pd-blurb" id="pd-blurb">${esc(p.blurb)}</p>
@@ -223,7 +229,7 @@ function productMain(p) {
         <div class="swatches" id="pd-swatches"></div>
       </fieldset>
       <div>
-        <div class="size-head"><span class="legend" id="pd-size-label">Size</span><button class="link-btn size-guide-link" type="button" id="pd-guide-link">Size guide</button></div>
+        <div class="size-head"><span class="legend" id="pd-size-label">Size</span><span class="usual" id="pd-usual" hidden></span><button class="link-btn size-guide-link" type="button" id="pd-guide-link">Size guide</button></div>
         <div class="sizes" id="pd-sizes" role="radiogroup" aria-labelledby="pd-size-label"></div>
       </div>
       <p class="stock-note" id="pd-stock" hidden></p>
@@ -232,6 +238,11 @@ function productMain(p) {
       <div class="pd-actions">
         <button class="btn primary block" type="submit" id="pd-add" disabled>Select a size</button>
         <button class="btn save-big" type="button" id="pd-save" aria-pressed="false" aria-label="Save">${HEART}</button>
+      </div>
+      <div class="restock" id="pd-restock" hidden>
+        <label class="field" for="restock-email"><span id="restock-label">Email me when it's back</span><input id="restock-email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com"></label>
+        <button class="btn" type="button" id="restock-go">Notify me</button>
+        <p class="restock-msg" id="restock-msg" role="status"></p>
       </div>
       <p class="pd-returns">14 days to change your mind · <button class="link-btn" type="button" id="pd-returns-link">Delivery and returns</button></p>
       <div class="tabs" id="pd-tabs" role="tablist" aria-label="Product information">
@@ -270,12 +281,26 @@ function productMain(p) {
       </div>
     </form>
   </div>
+  <section class="pdp-section reviews" id="reviews" aria-labelledby="reviews-title">
+    <div class="pdp-section-head">
+      <div><p class="eyebrow">What people say</p><h2 class="wide" id="reviews-title">Reviews</h2></div>
+      <button class="btn" type="button" id="review-write">Write a review</button>
+    </div>
+    <div class="rv-form-wrap" id="rv-form-wrap" hidden></div>
+    <div class="rv-summary" id="rv-summary"></div>
+    <ul class="rv-list" id="rv-list"></ul>
+    <button class="btn" type="button" id="rv-more" hidden>Show more reviews</button>
+  </section>
   <section class="pdp-section" aria-labelledby="pairs-title">
     <div class="pdp-section-head">
       <div><p class="eyebrow">Pairs well with</p><h2 class="wide" id="pairs-title">Complete the look</h2></div>
       <button class="btn" type="button" id="look-kit" aria-haspopup="dialog">Shop the full look</button>
     </div>
     <ul class="grid" id="pd-pairs">${p.pairs.map(id => pairCard(PRODUCTS.find(q => q.id === id))).join("")}</ul>
+  </section>
+  <section class="pdp-section" aria-labelledby="also-title">
+    <div class="pdp-section-head"><div><p class="eyebrow">From Drop 01</p><h2 class="wide" id="also-title">You might also like</h2></div></div>
+    <ul class="grid" id="also-grid">${alsoLike(p).map(pairCard).join("")}</ul>
   </section>
   <section class="recent" id="recent" aria-labelledby="recent-title" hidden>
     <div class="recent-head">
@@ -322,6 +347,24 @@ for (const pg of brandPages) {
   const meta = metaBlock({ title: `${pg.title} · ${BRAND}`, desc: pg.desc, url, extra: pg.ld ? [ldScript(pg.ld)] : [] });
   out.set(path.join(DOCS, pg.dir, "index.html"), shellPage(pg.dir, meta, `<main class="wrap page page-${pg.dir}" id="main">${pg.body.replace(/\n+$/, "")}\n</main>`));
 }
+// The admin page: private, so never in search results or the sitemap.
+out.set(path.join(DOCS, "admin", "index.html"), shellPage("admin", metaBlock({
+  title: `Admin · ${BRAND}`, desc: `${BRAND} shop admin.`, url: `${SITE_URL}admin/`,
+  extra: noindexTag ? [] : ['<meta name="robots" content="noindex, nofollow">'],
+}), `<main class="wrap admin" id="main">
+  <header class="page-head">
+    <p class="eyebrow">${esc(BRAND)} · Shop admin</p>
+    <h1 class="wide">Admin</h1>
+    <p class="page-lede" id="admin-who">Checking who's signed in…</p>
+  </header>
+  <div id="admin-gate" class="admin-gate" hidden></div>
+  <div id="admin-app" hidden>
+    <div class="admin-tabs" role="tablist" aria-label="Admin sections" id="admin-tabs"></div>
+    <p class="admin-msg" id="admin-msg" role="status"></p>
+    <div id="admin-panel" role="tabpanel" tabindex="-1"></div>
+  </div>
+</main>`).replace('<script src="assets/js/site.js" defer></script>', '<script src="assets/js/site.js" defer></script>\n<script src="assets/js/admin.js" defer></script>'));
+
 for (const pg of policies) {
   const url = `${SITE_URL}${pg.dir}/`;
   const meta = metaBlock({ title: `${pg.title} · ${BRAND}`, desc: pg.desc, url });
@@ -330,7 +373,7 @@ for (const pg of policies) {
 
 const urls = [SITE_URL, ...PRODUCTS.map(productUrl), ...[...brandPages, ...policies].map(pg => `${SITE_URL}${pg.dir}/`)];
 out.set(path.join(DOCS, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${u}</loc></url>`).join("\n")}\n</urlset>\n`);
-out.set(path.join(DOCS, "robots.txt"), `# Only read by search engines when the site is on its own domain.\nUser-agent: *\nAllow: /\nSitemap: ${SITE_URL}sitemap.xml\n`);
+out.set(path.join(DOCS, "robots.txt"), `# Only read by search engines when the site is on its own domain.\nUser-agent: *\nAllow: /\nDisallow: ${BASE_PATH}admin/\nSitemap: ${SITE_URL}sitemap.xml\n`);
 
 // GitHub Pages shows 404.html at whatever address was asked for, so it needs an absolute base.
 const notFound = fs.readFileSync(path.join(DOCS, "404.html"), "utf8").replace(/\n  <base href="[^"]*">/, "");

@@ -8,6 +8,8 @@
   const BAG_KEY = "pluge-bag-v1";
   const SAVED_KEY = "pluge-saved-v1";
   const RECENT_KEY = "pluge-recent-v1";
+  const SIZES_KEY = "pluge-sizes-v1";
+  const DISCOUNT_KEY = "pluge-discount-v1";
   const MOTION_KEY = "pluge-motion";
   const MAX_QTY = 10;
   const CHANNEL_DWELL = 5200; // ms each hero channel stays on screen
@@ -37,7 +39,12 @@
   // Change the address bar only on the real site, not in an embedded preview or a file opened from disk.
   const ROUTING = window.self === window.top && /^https?:$/.test(location.protocol);
   // Account state, used by the bag, saved and recently viewed code to save changes to the account.
-  let sb = null, user = null, applying = false, pushTimer = 0;
+  let sb = null, user = null, applying = false, pushTimer = 0, isAdmin = false;
+  // dbReady: the database client once it has loaded (null without ACCOUNTS settings). authKnown: who's
+  // signed in, once Supabase has checked.
+  let dbReady = Promise.resolve(null), authKnownResolve;
+  const authKnown = new Promise(r => { authKnownResolve = r; });
+  root.classList.add("js");
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const narrowScreen = window.matchMedia("(max-width: 640px)").matches;
   let still = root.dataset.motion === "off"; // true when animation is off
@@ -275,25 +282,66 @@
     $("#menu-cats").innerHTML = CATS.map(c => `<li><a href="${catUrl(c.id)}" data-cat="${c.id}">${c.id === "all" ? "Shop all" : esc(c.label)}</a></li>`).join("");
   }
 
-  // A product card: a link to the product's page, with save and quick view buttons over the photo.
+  // A product card: a link to the product's page, with colour swatches under it and, over the photo, a
+  // save button and (on screens with a mouse) quick add sizes and quick view. The photo carries a
+  // view-transition name, so it grows into the product page when the card is opened.
   function cardHtml(p, key, sizes) {
     const allOut = p.colours.every(k => colourOut(p, k));
     const badge = allOut ? `<span class="badge out">Sold out</span>`
       : p.badge ? `<span class="badge${p.badge === "Low stock" ? " low" : ""}">${esc(p.badge)}</span>` : "";
-    const back = hasBack(p);
-    const dots = p.colours.map(k => `<span class="dot" style="background:${swatchBg(k)}"></span>`).join("");
-    return `<li><a class="card" href="${pageUrl(p.id, key)}" data-id="${p.id}" data-colour="${key}">
-        <span class="tilt"><span class="card-media">${badge}
+    const back = hasBack(p), many = p.colours.length > 1;
+    const swatches = many ? `<div class="card-swatches" role="group" aria-label="${esc(p.name)} colours">${p.colours.map(k =>
+      `<button class="cs" type="button" data-colour="${k}" aria-pressed="${k === key}" aria-label="${esc(COLOURS[k].name)}" title="${esc(COLOURS[k].name)}"><span style="background:${swatchBg(k)}"></span></button>`).join("")}</div>` : "";
+    return `<li data-id="${p.id}" data-sizes="${esc(sizes)}"><a class="card" href="${pageUrl(p.id, key)}" data-id="${p.id}" data-colour="${key}">
+        <span class="tilt"><span class="card-media" style="view-transition-name:p-${p.id}">${badge}
           <span class="flip${back ? " has-back" : ""}">
             <span class="face front">${art(p, key, "front", { sizes })}</span>${back ? `<span class="face back">${art(p, key, "back", { sizes })}</span>` : ""}
           </span>
           <span class="glare"></span>${back ? `<span class="turn-hint" aria-hidden="true">Back</span>` : ""}
         </span></span>
         <span class="card-row"><span class="card-name">${esc(p.name)}</span><span class="card-price">${price(p.price)}</span></span>
-        <span class="card-meta">${dots}${p.colours.length} ${p.colours.length === 1 ? "colour" : "colours"}</span>
-      </a><div class="card-tools"><button class="save-tog" type="button" data-id="${p.id}" data-colour="${key}" aria-pressed="${isSaved(p.id)}" aria-label="Save ${esc(p.name)}">${HEART}</button>` +
-      (pd ? `<button class="qv" type="button" data-id="${p.id}" data-colour="${key}" aria-haspopup="dialog">Quick view<span class="vh">: ${esc(p.name)}</span></button>` : "") + `</div></li>`;
+        <span class="card-stars" data-id="${p.id}">${cardStars(p.id)}</span>
+        <span class="card-meta">${many ? `${p.colours.length} colours` : esc(COLOURS[key].name)}</span>
+      </a>${swatches}<div class="card-tools"><button class="save-tog" type="button" data-id="${p.id}" data-colour="${key}" aria-pressed="${isSaved(p.id)}" aria-label="Save ${esc(p.name)}">${HEART}</button>${quickAddHtml(p, key)}</div></li>`;
   }
+  // Quick add: the sizes in this colour, each one tap to the bag.
+  function quickAddHtml(p, key) {
+    const one = p.sizes.length === 1;
+    return `<div class="qa"><div class="qa-head"><span>${one ? "Quick add" : "Quick add: size"}</span>${pd ? `<button class="qv" type="button" data-id="${p.id}" data-colour="${key}" aria-haspopup="dialog">Quick view<span class="vh">: ${esc(p.name)}</span></button>` : ""}</div>
+      <div class="qa-sizes">${p.sizes.map(z => {
+        const out = isOut(p, key, z);
+        return `<button class="qa-size" type="button" data-id="${p.id}" data-colour="${key}" data-size="${esc(z)}"${out ? " disabled" : ""} aria-label="Add ${esc(p.name)}, ${esc(COLOURS[key].name)}, ${one ? "" : `size ${esc(z)}, `}to bag${out ? " (sold out)" : ""}">${one ? "Add to bag" : esc(z)}</button>`;
+      }).join("")}</div></div>`;
+  }
+
+  // Cards work the same wherever they are (the shop grid, a product page's pairings): one listener.
+  document.addEventListener("click", async e => {
+    const t = e.target.closest && e.target.closest(".card-tools button, .card-swatches .cs");
+    if (!t) return;
+    const li = t.closest("li[data-id]"), p = byId[li.dataset.id];
+    if (t.classList.contains("save-tog")) { toggleSaved(t.dataset.id, t.dataset.colour); return; }
+    if (t.classList.contains("qv")) { openProduct(t.dataset.id, t.dataset.colour); return; }
+    if (t.classList.contains("qa-size")) {
+      const from = li.querySelector(".card-media").getBoundingClientRect();
+      addToBag(p.id, t.dataset.colour, t.dataset.size);
+      const msg = `Added ${p.name}, ${COLOURS[t.dataset.colour].name}${p.sizes.length > 1 ? `, ${t.dataset.size}` : ""}`;
+      flyToBag(from, imgSrc(p, t.dataset.colour, "front")).then(() => { bumpBag(); showToast(msg); });
+      announce(`${msg} to your bag.`);
+      return;
+    }
+    if (t.classList.contains("cs") && t.getAttribute("aria-pressed") !== "true") {
+      // A colour swatch redraws the card in that colour, keeping focus on the swatch.
+      const k = t.dataset.colour;
+      await preload(imgSrc(p, k, "front", true));
+      const tmp = document.createElement("ul");
+      tmp.innerHTML = cardHtml(p, k, li.dataset.sizes);
+      const fresh = tmp.firstElementChild;
+      li.replaceWith(fresh);
+      if (finePointer) bindTilt(fresh.querySelector(".card"));
+      fresh.querySelector(`.cs[data-colour="${k}"]`).focus();
+      announce(`${p.name} in ${COLOURS[k].name}.`);
+    }
+  });
 
   // A size filter only keeps pieces that still have that size in at least one colour.
   const inSize = (p, size) => !size || (p.sizes.includes(size) && p.colours.some(k => !isOut(p, k, size)));
@@ -358,12 +406,6 @@
       document.querySelectorAll("#chips .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cat === "all")));
       renderGrid(true);
       $("#size-filter").focus();
-    });
-    grid.addEventListener("click", e => {
-      const save = e.target.closest(".save-tog");
-      if (save) { toggleSaved(save.dataset.id, save.dataset.colour); return; }
-      const qv = e.target.closest(".qv");
-      if (qv) openProduct(qv.dataset.id, qv.dataset.colour);
     });
     // ?cat=tees (from the footer or menu on another page) opens the shop on that category.
     const startCat = new URLSearchParams(location.search).get("cat");
@@ -470,8 +512,8 @@
   function openKit({ title, items, intro = "" }) {
     kitName = title;
     kitItems = items.map(([id, colour, wears]) => {
-      const p = byId[id], out = colourOut(p, colour);
-      const size = p.sizes.length === 1 && !out ? p.sizes[0] : "";
+      const p = byId[id], out = colourOut(p, colour), usual = usualSize(p);
+      const size = out ? "" : p.sizes.length === 1 ? p.sizes[0] : usual && !isOut(p, colour, usual) ? usual : "";
       return { p, colour, size, out, wears };
     });
     $("#kit-title").textContent = title;
@@ -711,7 +753,10 @@
     if (!p || (!pd && !pdp)) return;
     sel.p = p;
     sel.colour = colour && p.colours.includes(colour) && !colourOut(p, colour) ? colour : (p.colours.find(k => !colourOut(p, k)) || p.colours[0]);
-    sel.size = null;
+    // The shopper's usual size is picked for them, if it's in stock.
+    const usual = usualSize(p);
+    sel.size = usual && !isOut(p, sel.colour, usual) ? usual : null;
+    $("#restock-msg").textContent = "";
     if (stage) {
       tweenId++;
       angle = 0;
@@ -764,8 +809,22 @@
       if (hasBack(p) && !still) setTimeout(() => { if (pd.open && !drag && !zoomed) { tweenTo(34, 520); setTimeout(() => { if (!drag && !zoomed) tweenTo(0, 700); }, 560); } }, 520);
     } else {
       renderRecent();
+      renderAlso();
+      renderReviewSummary();
+      loadReviews();
       pageColourUrl();
     }
+  }
+  // "You might also like": the rest of the drop, same category first, leaving out the pairings.
+  function alsoLike(p) {
+    const skip = new Set([p.id, ...p.pairs]);
+    return PRODUCTS.filter(q => !skip.has(q.id)).sort((a, b) => (b.cat === p.cat) - (a.cat === p.cat)).slice(0, 4);
+  }
+  function renderAlso() {
+    const box = $("#also-grid");
+    if (!box) return;
+    box.innerHTML = alsoLike(sel.p).map(q => cardHtml(q, firstIn(q), PAIR_SIZES)).join("");
+    if (finePointer) box.querySelectorAll(".card").forEach(bindTilt);
   }
 
   // "Complete the look": small buttons that swap the quick view, or product cards on the product page.
@@ -899,6 +958,10 @@
       $("#pd-fit-view").textContent = !stage ? "See the photo" : modelOn ? "Show the product" : "View on model";
     }
 
+    const usual = usualSize(p);
+    $("#pd-usual").hidden = !usual;
+    $("#pd-usual").textContent = usual ? `Your size: ${usual}` : "";
+
     // Sold-out sizes stay selectable so shoppers can ask to hear when they're back.
     $("#pd-sizes").innerHTML = p.sizes.map((s, i) => {
       const out = isOut(p, key, s);
@@ -920,8 +983,27 @@
     if (out) note.textContent = `${sel.size} is sold out in ${COLOURS[sel.colour].name}.`;
     add.disabled = !sel.size;
     add.classList.toggle("primary", !out);
-    add.textContent = !sel.size ? "Select a size" : out ? `Notify me when ${sel.size} is back` : `Add to bag · ${price(p.price)}`;
+    add.textContent = !sel.size ? "Select a size" : out ? `Email me when ${sel.size} is back` : `Add to bag · ${price(p.price)}`;
+    // A sold-out size offers a back-in-stock email instead.
+    $("#pd-restock").hidden = !out;
+    if (out) {
+      $("#restock-label").textContent = `Email me if ${sel.size} comes back in ${COLOURS[sel.colour].name}`;
+      if (user && !$("#restock-email").value) $("#restock-email").value = user.email;
+    }
     updateBuybar();
+  }
+  async function requestRestock() {
+    const input = $("#restock-email"), msg = $("#restock-msg"), email = input.value.trim();
+    const p = sel.p, colour = sel.colour, size = sel.size;
+    if (!EMAIL_RE.test(email)) { msg.textContent = "Enter an email address, like name@example.com."; input.focus(); return; }
+    const db = await dbReady;
+    if (!db) { msg.textContent = "Preview only: back-in-stock requests aren't saved yet."; return; }
+    $("#restock-go").disabled = true;
+    const { error } = await db.from("restock_alerts").insert({ email, product_id: p.id, colour, size });
+    $("#restock-go").disabled = false;
+    msg.textContent = !error ? `Done. We'll email ${email} if ${size} comes back in ${COLOURS[colour].name}.`
+      : error.code === "23505" ? `You're already on the list for ${size} in ${COLOURS[colour].name}.`
+      : `That didn't work: ${String(error.message).replace(/\.$/, "")}. Try again.`;
   }
 
   if (pdForm) {
@@ -969,14 +1051,13 @@
       if (i >= 0) showSlide(i);
     });
     $("#pd-save").addEventListener("click", () => toggleSaved(sel.p.id, sel.colour));
+    $("#restock-go").addEventListener("click", requestRestock);
+    $("#restock-email").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); requestRestock(); } });
     pdForm.addEventListener("submit", e => {
       e.preventDefault();
       if (!sel.size) return;
       const p = sel.p, colour = sel.colour, size = sel.size;
-      if (isOut(p, colour, size)) {
-        $("#pd-size-note").textContent = `Preview only: restock alerts aren't saved yet, so we can't email you about ${size}.`;
-        return;
-      }
+      if (isOut(p, colour, size)) { $("#restock-email").focus(); return; }
       const from = flyFrom();
       const src = imgSrc(p, colour, stage && !modelOn ? side : "front");
       addToBag(p.id, colour, size);
@@ -1240,6 +1321,225 @@
     return anim.finished.then(() => el.remove(), () => el.remove());
   }
 
+  // ---- Reviews -------------------------------------------------------------------------
+  // Star ratings and written reviews from signed-in shoppers, shown once an admin approves them on the
+  // admin page. Stars appear on product cards and pages; a product page lists its reviews and a fit summary.
+  const STAR_PATH = "M12 2.6l2.9 6 6.5.8-4.8 4.5 1.2 6.5L12 17.3l-5.8 3.1 1.2-6.5-4.8-4.5 6.5-.8z";
+  const FIT_WORDS = { small: "Runs small", true: "True to size", large: "Runs large" };
+  let reviewStats = {}; // product id -> { count, average, fit_small, fit_true, fit_large }
+  const starsHtml = (avg, label) => `<span class="stars" style="--r:${(+avg).toFixed(2)}"${label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"'}></span>`;
+  const reviewsWord = n => `${n} ${n === 1 ? "review" : "reviews"}`;
+  function cardStars(id) {
+    const st = reviewStats[id];
+    return st && st.count ? `${starsHtml(st.average, `Rated ${st.average.toFixed(1)} out of 5 from ${reviewsWord(st.count)}`)}<span class="stars-n" aria-hidden="true">${st.average.toFixed(1)} (${st.count})</span>` : "";
+  }
+  async function loadReviewStats() {
+    const db = await dbReady;
+    if (!db) return;
+    const { data, error } = await db.from("review_stats").select("product_id,count,average,fit_small,fit_true,fit_large");
+    if (error) { console.warn(`PLUGE: couldn't load review stars: ${error.message}`); return; }
+    reviewStats = Object.fromEntries((data || []).map(r => [r.product_id, r]));
+    document.querySelectorAll(".card-stars[data-id]").forEach(el => { el.innerHTML = cardStars(el.dataset.id); });
+    if (pdp && sel.p) renderReviewSummary();
+  }
+
+  const rvSec = $("#reviews");
+  let rvList = [], rvShown = 6, rvMine = null, rvHasMine = false;
+  function renderReviewSummary() {
+    const p = sel.p, st = reviewStats[p.id], stars = $("#pd-stars");
+    stars.hidden = !(st && st.count);
+    if (st && st.count) {
+      stars.innerHTML = `${starsHtml(st.average)}<span>${st.average.toFixed(1)} · ${reviewsWord(st.count)}</span><span class="vh">, out of 5. Go to reviews</span>`;
+      updateRatingLd(st);
+    }
+    const box = $("#rv-summary");
+    if (!st || !st.count) {
+      box.innerHTML = `<p class="rv-empty">${acctCfg ? `No reviews yet. Got the ${esc(p.name)}? Be the first to say what you think.` : "Reviews open when the shop launches."}</p>`;
+      return;
+    }
+    const votes = st.fit_small + st.fit_true + st.fit_large;
+    const pos = votes ? (st.fit_true * 50 + st.fit_large * 100) / votes : 50; // 0 small, 50 true, 100 large
+    box.innerHTML = `<div class="rv-score"><b>${st.average.toFixed(1)}</b>${starsHtml(st.average, `${st.average.toFixed(1)} out of 5 stars`)}<span>${reviewsWord(st.count)}</span></div>
+      ${votes ? `<div class="rv-fit"><p>How it fits: <b>${pos < 35 ? FIT_WORDS.small : pos > 65 ? FIT_WORDS.large : FIT_WORDS.true}</b> <span class="rv-fit-n">(${votes} ${votes === 1 ? "vote" : "votes"})</span></p>
+        <div class="rv-fit-bar" aria-hidden="true"><i style="left:${pos.toFixed(0)}%"></i></div><p class="rv-fit-ends" aria-hidden="true"><span>Small</span><span>True to size</span><span>Large</span></p></div>` : ""}`;
+  }
+  // Adds the rating to the product's search-engine data, so results can show its stars.
+  function updateRatingLd(st) {
+    const el = [...document.querySelectorAll('script[type="application/ld+json"]')].find(x => /"@type":"Product"/.test(x.textContent));
+    if (!el) return;
+    try {
+      const data = JSON.parse(el.textContent);
+      data.aggregateRating = { "@type": "AggregateRating", ratingValue: st.average.toFixed(1), reviewCount: st.count, bestRating: 5, worstRating: 1 };
+      el.textContent = JSON.stringify(data).replace(/</g, "\\u003c");
+    } catch { /* leave the data as it was */ }
+  }
+  async function loadReviews() {
+    const db = await dbReady;
+    if (!db || !sel.p) { renderReviewList(); return; }
+    const id = sel.p.id, cols = "id,author,rating,title,body,size,fit,verified,status,created_at";
+    const who = await authKnown;
+    const [list, mine] = await Promise.all([
+      db.from("reviews").select(cols).eq("product_id", id).eq("status", "approved").order("created_at", { ascending: false }).limit(100),
+      user || who ? db.from("reviews").select(cols).eq("product_id", id).eq("user_id", (user || who).id).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    if (list.error) console.warn(`PLUGE: couldn't load reviews: ${list.error.message}`);
+    rvList = list.data || [];
+    rvHasMine = !!(mine && mine.data);
+    rvMine = rvHasMine && mine.data.status !== "approved" ? mine.data : null;
+    renderReviewList();
+  }
+  function reviewHtml(r, own) {
+    const when = new Date(r.created_at);
+    return `<li class="rv${own ? " own" : ""}">
+        <div class="rv-top">${starsHtml(r.rating, `${r.rating} out of 5 stars`)}${r.title ? `<b class="rv-title">${esc(r.title)}</b>` : ""}</div>
+        <p class="rv-body">${esc(r.body)}</p>
+        <p class="rv-meta"><span class="rv-author">${esc(r.author)}</span>${r.verified ? `<span class="rv-verified">Verified buyer</span>` : ""}${r.size ? `<span>Bought ${esc(r.size)}</span>` : ""}${r.fit ? `<span>${FIT_WORDS[r.fit] || ""}</span>` : ""}<span>${isNaN(when) ? "" : `${when.getDate()} ${MONTHS[when.getMonth()]} ${when.getFullYear()}`}</span></p>
+        ${own ? `<p class="rv-status">${r.status === "rejected" ? "Your review wasn't approved, so only you can see it." : "Your review is waiting for approval. Only you can see it for now."}</p>` : ""}
+      </li>`;
+  }
+  function renderReviewList() {
+    $("#rv-list").innerHTML = (rvMine ? reviewHtml(rvMine, true) : "") + rvList.slice(0, rvShown).map(r => reviewHtml(r, false)).join("");
+    $("#rv-more").hidden = rvList.length <= rvShown;
+    $("#review-write").hidden = rvHasMine;
+  }
+  function reviewFormHtml() {
+    const p = sel.p, name = (user.user_metadata && user.user_metadata.name) || "";
+    const star = n => `<input type="radio" name="rating" id="rv-r${n}" value="${n}"><label for="rv-r${n}" title="${n} ${n === 1 ? "star" : "stars"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg><span class="vh">${n} ${n === 1 ? "star" : "stars"}</span></label>`;
+    const sized = p.sizes.length > 1;
+    return `<form class="rv-form" id="rv-form" novalidate>
+        <h3 class="acct-h">Review the ${esc(p.name)}</h3>
+        <fieldset class="rv-rate"><legend>Your rating</legend><div class="star-pick">${[5, 4, 3, 2, 1].map(star).join("")}</div></fieldset>
+        <label class="field" for="rv-title"><span>Headline <span class="field-opt">(optional)</span></span><input id="rv-title" name="title" maxlength="80"></label>
+        <label class="field" for="rv-body"><span>Your review</span><textarea id="rv-body" name="body" maxlength="2000" required></textarea></label>
+        ${sized ? `<div class="rv-row"><label class="field" for="rv-size"><span>Size you got <span class="field-opt">(optional)</span></span><select id="rv-size" name="size"><option value="">Choose</option>${p.sizes.map(z => `<option>${esc(z)}</option>`).join("")}</select></label>
+        <fieldset class="rv-fitpick"><legend>How does it fit? <span class="field-opt">(optional)</span></legend>${["small", "true", "large"].map(f => `<label><input type="radio" name="fit" value="${f}"> ${FIT_WORDS[f]}</label>`).join("")}</fieldset></div>` : ""}
+        <label class="field" for="rv-author"><span>Name shown with your review</span><input id="rv-author" name="author" maxlength="40" autocomplete="given-name" value="${esc(name)}"></label>
+        <p class="fine">We read every review before it goes up. Please leave out personal details like your address.</p>
+        <div class="acct-row"><button class="btn primary" type="submit">Submit review</button><button class="btn" type="button" data-act="rv-cancel">Cancel</button></div>
+        <p class="form-msg" id="rv-msg" role="status"></p>
+      </form>`;
+  }
+  async function openReviewForm() {
+    const wrap = $("#rv-form-wrap");
+    if (!acctCfg) {
+      wrap.hidden = false;
+      wrap.innerHTML = `<p class="acct-preview" tabindex="-1">Preview: reviews switch on once the shop's database is connected.</p>`;
+      wrap.firstElementChild.focus();
+      return;
+    }
+    await authKnown;
+    if (!user) {
+      afterSignIn = () => { openReviewForm(); };
+      acctView = "signin";
+      openAccount();
+      acctMsg = "Sign in or create an account to write a review.";
+      $("#acct-msg").textContent = acctMsg;
+      return;
+    }
+    wrap.hidden = false;
+    wrap.innerHTML = reviewFormHtml();
+    wrap.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    $("#rv-r5").focus({ preventScroll: true });
+  }
+  async function submitReview(form) {
+    const f = form.elements, msg = $("#rv-msg"), p = sel.p;
+    const pick = name => (form.querySelector(`input[name="${name}"]:checked`) || {}).value || null;
+    const rating = Number(pick("rating")), body = f.body.value.trim(), author = f.author.value.trim();
+    const fail = (text, el) => { msg.classList.add("err"); msg.textContent = text; el.focus(); };
+    if (!rating) return fail("Choose a star rating.", $("#rv-r5"));
+    if (body.length < 10) return fail("Write a little more: at least 10 characters.", f.body);
+    if (!author) return fail("Enter the name to show with your review.", f.author);
+    msg.classList.remove("err");
+    msg.textContent = "Sending…";
+    const btn = form.querySelector('[type="submit"]');
+    btn.disabled = true;
+    const db = await dbReady;
+    const { error } = await db.from("reviews").insert({ product_id: p.id, product_name: p.name, author, rating, title: f.title.value.trim() || null, body,
+      size: (f.size && f.size.value) || null, fit: pick("fit") });
+    btn.disabled = false;
+    if (error) return fail(error.code === "23505" ? "You've already reviewed this piece." : `Your review didn't send: ${String(error.message).replace(/\.$/, "")}. Try again.`, btn);
+    $("#rv-form-wrap").innerHTML = `<p class="rv-thanks" tabindex="-1">Thanks, ${esc(author)}. Your review will appear here once we've checked it.</p>`;
+    $("#rv-form-wrap .rv-thanks").focus();
+    loadReviews();
+  }
+  if (rvSec) {
+    $("#review-write").addEventListener("click", openReviewForm);
+    $("#rv-more").addEventListener("click", () => {
+      rvShown += 6;
+      renderReviewList();
+      const items = $("#rv-list").children;
+      if (items[rvShown - 6]) { items[rvShown - 6].setAttribute("tabindex", "-1"); items[rvShown - 6].focus(); }
+    });
+    $("#rv-form-wrap").addEventListener("submit", e => { e.preventDefault(); submitReview(e.target); });
+    $("#rv-form-wrap").addEventListener("click", e => {
+      if (!e.target.closest('[data-act="rv-cancel"]')) return;
+      $("#rv-form-wrap").hidden = true;
+      $("#review-write").focus();
+    });
+    $("#pd-stars").addEventListener("click", () => { rvSec.scrollIntoView({ behavior: still ? "auto" : "smooth" }); $("#reviews-title").setAttribute("tabindex", "-1"); $("#reviews-title").focus({ preventScroll: true }); });
+    document.addEventListener("pluge:auth", () => { if (sel.p) loadReviews(); });
+  }
+
+  // ---- Your sizes ------------------------------------------------------------------
+  // The size a shopper takes in tops, bottoms and socks: learned from the first thing they add to the bag
+  // in each, editable in the account panel, kept in the account when signed in, and picked for them on
+  // product pages and in "shop the look".
+  const SIZE_GROUPS = [["tops", "Hoodies, crews and tees"], ["bottoms", "Joggers"], ["socks", "Socks"]];
+  const sizeGroup = p => !p || p.sizes.length < 2 ? null : p.cat === "bottoms" ? "bottoms" : p.cat === "acc" ? "socks" : "tops";
+  const groupSizes = g => { const p = PRODUCTS.find(x => sizeGroup(x) === g); return p ? p.sizes : []; };
+  function cleanSizes(v) {
+    const out = {};
+    if (v && typeof v === "object") for (const [g] of SIZE_GROUPS) if (groupSizes(g).includes(v[g])) out[g] = v[g];
+    return out;
+  }
+  let mySizes = (() => { try { return cleanSizes(JSON.parse(localStorage.getItem(SIZES_KEY) || "{}")); } catch { return {}; } })();
+  function saveSizes() {
+    try { localStorage.setItem(SIZES_KEY, JSON.stringify(mySizes)); } catch { /* kept for this visit */ }
+    markDirty();
+  }
+  function learnSize(p, size) {
+    const g = sizeGroup(p);
+    if (g && !mySizes[g] && p.sizes.includes(size)) { mySizes[g] = size; saveSizes(); }
+  }
+  const usualSize = p => { const g = sizeGroup(p); return g && mySizes[g] && p.sizes.includes(mySizes[g]) ? mySizes[g] : null; };
+
+  // ---- Discount codes -----------------------------------------------------------------
+  // A code from a link (?discount=CODE) or typed into the bag is handed to Shopify's checkout, which
+  // checks it and takes it off the total.
+  const validCode = c => /^[A-Za-z0-9_-]{2,40}$/.test(c);
+  let discount = (() => { try { const c = localStorage.getItem(DISCOUNT_KEY) || ""; return validCode(c) ? c : ""; } catch { return ""; } })();
+  function setDiscount(code) {
+    discount = code;
+    try { if (code) localStorage.setItem(DISCOUNT_KEY, code); else localStorage.removeItem(DISCOUNT_KEY); } catch { /* kept for this visit */ }
+    renderPromo();
+  }
+  function renderPromo() {
+    const on = $("#promo-on");
+    on.hidden = !discount;
+    on.innerHTML = discount ? `Code <b>${esc(discount)}</b> goes on at checkout. <button class="link-btn" type="button" id="promo-remove">Remove<span class="vh"> code ${esc(discount)}</span></button>` : "";
+    $("#promo-add").hidden = !!discount;
+  }
+  $("#promo").addEventListener("click", e => {
+    if (e.target.closest("#promo-remove")) { setDiscount(""); $("#promo-add").open = true; $("#promo-in").focus(); announce("Discount code removed."); return; }
+    if (!e.target.closest("#promo-apply")) return;
+    const code = $("#promo-in").value.trim();
+    if (!validCode(code)) { $("#promo-msg").textContent = "Enter the code as it was given to you, like WELCOME10."; $("#promo-in").focus(); return; }
+    $("#promo-msg").textContent = "";
+    $("#promo-in").value = "";
+    setDiscount(code);
+    announce(`Code ${code} saved. Shopify checks it and takes it off at checkout.`);
+    $("#promo-remove").focus();
+  });
+  $("#promo-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#promo-apply").click(); } });
+  {
+    const fromLink = (new URLSearchParams(location.search).get("discount") || "").trim();
+    if (fromLink && validCode(fromLink)) {
+      setDiscount(fromLink);
+      setTimeout(() => showToast(`Code ${fromLink} saved. It comes off at checkout.`, { bagLink: false }), 600);
+      if (ROUTING) { try { const u = new URL(location.href); u.searchParams.delete("discount"); history.replaceState(history.state, "", u.href); } catch { /* the code stays in the address */ } }
+    }
+  }
+
   // ---- Bag -----------------------------------------------------------------
   const bagDlg = $("#bag");
   let bag = loadBag(), shipKey = SHIP_KEYS[0];
@@ -1262,6 +1562,7 @@
   const lineKey = l => `${l.id}|${l.colour}|${l.size}`;
 
   function addToBag(id, colour, size) {
+    learnSize(byId[id], size);
     const hit = bag.find(l => l.id === id && l.colour === colour && l.size === size);
     if (hit) hit.qty = Math.min(hit.qty + 1, MAX_QTY);
     else bag.push({ id, colour, size, qty: 1 });
@@ -1324,9 +1625,21 @@
       </li>`;
     }).join("");
 
+    renderBagRecs();
     $("#t-sub").textContent = money(sub);
     $("#t-ship").textContent = delivery ? money(delivery) : "Free";
     $("#t-total").textContent = money(sub + delivery);
+  }
+
+  // Pieces that go with what's in the bag: the pairings of each piece first, then the rest of the drop.
+  function renderBagRecs() {
+    const inBag = new Set(bag.map(l => l.id));
+    const paired = [...new Set(bag.flatMap(l => byId[l.id].pairs))].filter(id => !inBag.has(id));
+    const recs = [...paired, ...PRODUCTS.map(p => p.id).filter(id => !inBag.has(id) && !paired.includes(id))].slice(0, 4).map(id => byId[id]);
+    $("#bag-recs").hidden = !bag.length || !recs.length;
+    $("#bag-recs-row").innerHTML = recs.map(p => `<li><a class="mini" href="${pageUrl(p.id, firstIn(p))}">
+        <span class="mini-img">${art(p, firstIn(p), "front", { sizes: "120px" })}</span>
+        <span class="mini-name">${esc(p.name)}</span><span class="mini-price">${price(p.price)}</span></a></li>`).join("");
   }
 
   $("#bag-lines").addEventListener("click", e => {
@@ -1449,7 +1762,7 @@
       }
       const data = await storefront(`mutation PlugeCart($input: CartInput!) {
         cartCreate(input: $input) { cart { checkoutUrl } userErrors { field message } }
-      }`, { input: { lines: bag.map(l => ({ merchandiseId: map.get(lineKey(l)).id, quantity: l.qty })), buyerIdentity: { countryCode: "GB", ...(user && user.email ? { email: user.email } : {}) } } });
+      }`, { input: { lines: bag.map(l => ({ merchandiseId: map.get(lineKey(l)).id, quantity: l.qty })), buyerIdentity: { countryCode: "GB", ...(user && user.email ? { email: user.email } : {}) }, ...(discount ? { discountCodes: [discount] } : {}) } });
       const { cart, userErrors } = data.cartCreate;
       if (userErrors && userErrors.length) throw new Error(userErrors[0].message);
       window.location.assign(cart.checkoutUrl);
@@ -1503,6 +1816,8 @@
     const empty = saved.length === 0;
     $("#saved-empty").hidden = !empty;
     $("#saved-lines").hidden = empty;
+    $("#saved-share").hidden = empty;
+    $("#saved-fine").textContent = user ? "Saved pieces are kept in your account, on every device you sign in on." : "Saved pieces are kept on this device. Sign in to keep them on every device.";
     $("#saved-lines").innerHTML = saved.map(x => {
       const p = byId[x.id], out = colourOut(p, x.colour);
       return `<li class="line">
@@ -1529,6 +1844,21 @@
     (rest[Math.min(i, rest.length - 1)] || $("#saved-shop")).focus();
   });
   $("#saved-open").addEventListener("click", () => { renderSaved(); if (!savedDlg.open) savedDlg.showModal(); });
+  // Share the saved list as a link: ?list=id.colour,id.colour opens it as a "shop the look" drawer.
+  $("#saved-share").addEventListener("click", async () => {
+    const url = `${ROOT}?list=${saved.map(x => `${x.id}.${x.colour}`).join(",")}`;
+    if (navigator.share && !finePointer) {
+      try { await navigator.share({ title: `${BRAND}: my saved pieces`, url }); return; } catch (err) { if (err && err.name === "AbortError") return; }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied. Send it to anyone.", { bagLink: false });
+      announce("Link to your saved pieces copied.");
+    } catch {
+      $("#saved-fine").innerHTML = `<label for="saved-link">Copy this link to share your list:</label><input class="share-link" id="saved-link" readonly value="${esc(url)}">`;
+      $("#saved-link").select();
+    }
+  });
   $("#saved-close").addEventListener("click", () => savedDlg.close());
   $("#saved-shop").addEventListener("click", () => { savedDlg.close(); goShop(); });
 
@@ -1595,7 +1925,7 @@
     });
   }
   async function initAccounts() {
-    if (!acctCfg) return;
+    if (!acctCfg) { authKnownResolve(null); return null; }
     try {
       if (!window.supabase) await loadScript(`${ROOT}assets/js/vendor/supabase-2.117.2.js`);
       sb = window.supabase.createClient(acctCfg.supabaseUrl, acctCfg.supabaseKey, {
@@ -1603,8 +1933,15 @@
       });
       // Supabase asks for other calls to wait until its auth callback has returned, hence the timeout.
       sb.auth.onAuthStateChange((event, session) => { setTimeout(() => onAuth(event, session), 0); });
-    } catch (err) { console.warn(`PLUGE: accounts are unavailable: ${err.message}`); }
+      return sb;
+    } catch (err) {
+      console.warn(`PLUGE: accounts are unavailable: ${err.message}`);
+      authKnownResolve(null);
+      return null;
+    }
   }
+  // Something to do once the shopper has signed in, such as writing the review they asked to write.
+  let afterSignIn = null;
 
   async function onAuth(event, session) {
     const next = session ? session.user : null, prev = user;
@@ -1613,6 +1950,11 @@
     syncAccountButton();
     if (next && (!prev || prev.id !== next.id)) {
       orders = null;
+      isAdmin = false;
+      sb.rpc("is_admin").then(({ data }) => {
+        isAdmin = data === true;
+        if (isAdmin && acctDlg.open && user && acctView !== "newpass" && !$("#acct-admin")) renderAccount();
+      });
       // Signing in on this device brings the guest bag along; a returning visit loads the account's.
       await pullState(event === "SIGNED_IN" ? "merge" : "load");
       if (event === "SIGNED_IN" && prev === null) announce(`Signed in as ${next.email}.`);
@@ -1625,6 +1967,16 @@
       renderAccount();
       if (user && acctView !== "newpass") $("#acct-hello").focus();
     }
+    authKnownResolve(user);
+    if (changed) {
+      document.dispatchEvent(new CustomEvent("pluge:auth", { detail: { user } }));
+      if (user && afterSignIn) {
+        const todo = afterSignIn;
+        afterSignIn = null;
+        if (acctDlg.open) acctDlg.close();
+        todo();
+      }
+    }
   }
 
   function markDirty() {
@@ -1636,25 +1988,28 @@
   async function pushState() {
     clearTimeout(pushTimer);
     if (!user || !sb) return;
-    const { error } = await sb.from("shopper_state").upsert({ user_id: user.id, bag, saved, recent, updated_at: new Date().toISOString() });
+    const { error } = await sb.from("shopper_state").upsert({ user_id: user.id, bag, saved, recent, sizes: mySizes, updated_at: new Date().toISOString() });
     if (error) console.warn(`PLUGE: couldn't save to your account: ${error.message}`);
     else writeSync({ user: user.id, dirty: false });
   }
   async function pullState(mode) {
-    const { data, error } = await sb.from("shopper_state").select("bag,saved,recent").eq("user_id", user.id).maybeSingle();
+    const { data, error } = await sb.from("shopper_state").select("bag,saved,recent,sizes").eq("user_id", user.id).maybeSingle();
     if (error) { console.warn(`PLUGE: couldn't load your account: ${error.message}`); return; }
     const info = readSync();
     // Changes made on this device that never reached the account win over the copy in the account.
     if (mode === "load" && info.user === user.id && info.dirty) { await pushState(); return; }
     const remote = { bag: cleanBag(data && data.bag), saved: cleanPicks(data && data.saved), recent: cleanPicks(data && data.recent) };
+    const remoteSizes = cleanSizes(data && data.sizes);
     if (mode === "merge") {
       bag = mergeBags(remote.bag, bag);
       saved = mergePicks(saved, remote.saved).slice(0, 60);
       recent = mergePicks(recent, remote.recent).slice(0, 8);
+      mySizes = { ...remoteSizes, ...mySizes };
     } else {
       bag = remote.bag;
       saved = remote.saved.slice(0, 60);
       recent = remote.recent.slice(0, 8);
+      mySizes = remoteSizes;
     }
     applyShopperState();
     if (mode === "merge" || !data) await pushState(); else writeSync({ user: user.id, dirty: false });
@@ -1664,6 +2019,7 @@
     saveBag();
     writeList(SAVED_KEY, saved);
     writeList(RECENT_KEY, recent);
+    try { localStorage.setItem(SIZES_KEY, JSON.stringify(mySizes)); } catch { /* kept for this visit */ }
     applying = false;
     fresh.clear();
     renderBag();
@@ -1673,7 +2029,8 @@
   }
   // Signing out leaves nothing of the account on a shared device.
   function clearShopperState() {
-    bag = []; saved = []; recent = [];
+    bag = []; saved = []; recent = []; mySizes = {};
+    isAdmin = false;
     applyShopperState();
     writeSync({});
   }
@@ -1747,6 +2104,13 @@
       <section class="acct-sec" aria-labelledby="acct-kept-h"><h3 class="acct-h" id="acct-kept-h">Bag and saved</h3>
         <p>${count} ${count === 1 ? "piece" : "pieces"} in your bag and ${saved.length} saved, kept in your account so they're here on any device you sign in on.</p>
         <div class="acct-row"><button class="btn small" type="button" data-act="bag">Open bag</button><button class="btn small" type="button" data-act="saved">Open saved</button></div></section>
+      <section class="acct-sec" aria-labelledby="acct-sizes-h"><h3 class="acct-h" id="acct-sizes-h">Your sizes</h3>
+        <p>We pick these for you on product pages.</p>
+        <div class="acct-sizes">${SIZE_GROUPS.map(([g, label]) => `<label class="field" for="acct-size-${g}"><span>${label}</span><select id="acct-size-${g}" data-group="${g}">
+          <option value="">Not set</option>${groupSizes(g).map(z => `<option${mySizes[g] === z ? " selected" : ""}>${esc(z)}</option>`).join("")}</select></label>`).join("")}</div>
+      </section>
+      ${isAdmin ? `<section class="acct-sec" id="acct-admin" aria-labelledby="acct-admin-h"><h3 class="acct-h" id="acct-admin-h">Shop admin</h3>
+        <p>Orders, messages, sign-ups and reviews waiting for you.</p><div class="acct-row"><a class="btn small" href="${ROOT}admin/">Open the admin page</a></div></section>` : ""}
       <section class="acct-sec" aria-labelledby="acct-pass-h"><h3 class="acct-h" id="acct-pass-h">Change password</h3>
         <form class="acct-form" id="acct-pass" novalidate><label class="field" for="acct-newpass"><span>New password, 8 or more characters</span><input id="acct-newpass" name="password" type="password" autocomplete="new-password" required></label>
         <p class="acct-msg" id="acct-pass-msg" role="status"></p><button class="btn small" type="submit">Save password</button></form></section>
@@ -1874,6 +2238,13 @@
       await sb.auth.signOut({ scope: "local" });
     }
   });
+  $("#acct-body").addEventListener("change", e => {
+    const g = e.target.dataset.group;
+    if (!g) return;
+    if (e.target.value) mySizes[g] = e.target.value; else delete mySizes[g];
+    saveSizes();
+    announce(e.target.value ? `Saved ${e.target.value} as your size.` : "Size cleared.");
+  });
   $("#account-open").addEventListener("click", openAccount);
   $("#account-close").addEventListener("click", () => acctDlg.close());
   acctDlg.addEventListener("close", () => { acctMsg = ""; confirmDelete = false; });
@@ -1994,7 +2365,7 @@
     const m = a && a.href.startsWith(`${ROOT}p/`) && a.href.slice(ROOT.length).match(/^p\/([a-z0-9-]+)\/(?:\?colour=([a-z]+))?$/);
     if (!m || !byId[m[1]] || e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    [searchDlg, savedDlg, kit, menuDlg].forEach(d => { if (d.open) d.close(); });
+    [searchDlg, savedDlg, kit, menuDlg, bagDlg].forEach(d => { if (d.open) d.close(); });
     openProduct(m[1], m[2]);
   });
 
@@ -2090,21 +2461,27 @@
     setInterval(tickClock, 1000);
   }
 
-  if (dropSec) $("#notify").addEventListener("submit", e => {
+  // Drop alert sign-ups (the Drop 02 form and the footer form on every page), saved to the database
+  // with the wording the shopper agreed to.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  document.querySelectorAll(".alert-form").forEach(form => form.addEventListener("submit", async e => {
     e.preventDefault();
-    const input = $("#notify-email"), consent = $("#notify-consent"), msg = $("#notify-msg");
-    if (!input.value.trim() || !input.checkValidity()) {
-      msg.textContent = "Enter an email address, like name@example.com.";
-      input.focus();
-      return;
-    }
-    if (!consent.checked) {
-      msg.textContent = "Tick the box to agree to drop alert emails.";
-      consent.focus();
-      return;
-    }
-    msg.textContent = "Preview only: sign-ups aren't saved yet.";
-  });
+    const input = form.querySelector('input[type="email"]'), consent = form.querySelector('input[type="checkbox"]');
+    const msg = form.querySelector(".notify-msg"), btn = form.querySelector('[type="submit"]');
+    const email = input.value.trim();
+    if (!EMAIL_RE.test(email)) { msg.textContent = "Enter an email address, like name@example.com."; input.focus(); return; }
+    if (!consent.checked) { msg.textContent = "Tick the box to agree to drop alert emails."; consent.focus(); return; }
+    const db = await dbReady;
+    if (!db) { msg.textContent = "Preview only: sign-ups aren't saved yet."; return; }
+    btn.disabled = true;
+    msg.textContent = "Signing you up…";
+    const { error } = await db.from("drop_alerts").insert({ email, list: form.dataset.list, consent: consent.closest("label").textContent.replace(/\s+/g, " ").trim() });
+    btn.disabled = false;
+    if (error && error.code !== "23505") { msg.textContent = `That didn't work: ${String(error.message).replace(/\.$/, "")}. Try again.`; return; }
+    msg.textContent = error ? "You're already on the list. We'll email you when the next drop lands." : "You're on the list. We'll email you when the next drop lands.";
+    input.value = "";
+    consent.checked = false;
+  }));
   document.querySelectorAll('a[href="#notify"]').forEach(a => a.addEventListener("click", () => {
     setTimeout(() => $("#notify-email").focus({ preventScroll: true }), still ? 0 : 450);
   }));
@@ -2176,8 +2553,12 @@
 
   // ---- Contact page ------------------------------------------------------------
   // With CONTACT.formEndpoint set (a Formspree form), messages are posted there and arrive by email.
-  // Without it, the shopper's email app opens with the message filled in.
+  // Otherwise, with the database connected, they're saved for the admin page. Without either, the
+  // shopper's email app opens with the message filled in.
   const contactForm = $("#contact-form");
+  // The "opens your email app" note only applies when messages can't be sent straight to the shop.
+  // (Checked once start-up has finished, when the database connection has been started.)
+  if (contactForm && $("#contact-app-note")) Promise.resolve().then(() => dbReady).then(db => { if (db || (CONTACT && CONTACT.formEndpoint)) $("#contact-app-note").hidden = true; });
   if (contactForm) {
     const f = contactForm.elements, msg = $("#contact-msg"), sendBtn = $("#contact-send");
     const CHECKS = [
@@ -2204,7 +2585,8 @@
         order: f.order.value.trim(), message: f.message.value.trim(),
       };
       const endpoint = CONTACT && CONTACT.formEndpoint;
-      if (!endpoint) {
+      const db = endpoint ? null : await dbReady;
+      if (!endpoint && !db) {
         const subject = `${data.topic}${data.order ? `, order ${data.order}` : ""}`;
         const body = `${data.message}\n\n${data.name}\n${data.email}${data.order ? `\nOrder: ${data.order}` : ""}`;
         location.href = `mailto:${COMPANY.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -2215,12 +2597,17 @@
       sendBtn.textContent = "Sending…";
       msg.textContent = "";
       try {
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ ...data, _subject: `${BRAND} contact form: ${data.topic}`, _replyto: data.email }),
-        });
-        if (!res.ok) throw new Error(`the form service replied ${res.status}`);
+        if (endpoint) {
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ ...data, _subject: `${BRAND} contact form: ${data.topic}`, _replyto: data.email }),
+          });
+          if (!res.ok) throw new Error(`the form service replied ${res.status}`);
+        } else {
+          const { error } = await db.from("contact_messages").insert({ name: data.name, email: data.email, topic: data.topic, order_ref: data.order || null, message: data.message });
+          if (error) throw new Error(/Too many/.test(error.message) ? "you've sent a lot of messages in the last hour, so please email us instead" : error.message);
+        }
         contactForm.hidden = true;
         $("#contact-done-email").textContent = data.email;
         $("#contact-done").hidden = false;
@@ -2235,6 +2622,38 @@
     });
   }
 
+  // ---- Shared lists ------------------------------------------------------------------
+  // A link made with "Share your list" (?list=id.colour,...) opens those pieces, ready to size and add.
+  {
+    const raw = new URLSearchParams(location.search).get("list");
+    const picks = raw ? raw.split(",").map(x => { const [id, colour] = x.split("."); return { id, colour }; }).filter(validPick).slice(0, 30) : [];
+    if (picks.length) {
+      openKit({
+        title: "Shared with you",
+        items: picks.map(x => [x.id, x.colour]),
+        intro: `<p class="kit-shared">Someone shared ${picks.length} ${picks.length === 1 ? "piece" : "pieces"} from ${esc(BRAND)} with you. Pick sizes to add them to your bag, or keep them for later.</p><button class="btn small" type="button" data-act="save-all">Save all to my list</button>`,
+      });
+      if (ROUTING) { try { const u = new URL(location.href); u.searchParams.delete("list"); history.replaceState(history.state, "", u.href); } catch { /* the list stays in the address */ } }
+    }
+  }
+  $("#kit-intro").addEventListener("click", e => {
+    const b = e.target.closest('[data-act="save-all"]');
+    if (!b) return;
+    kitItems.forEach(it => { if (!isSaved(it.p.id)) toggleSaved(it.p.id, it.colour); });
+    b.textContent = "Saved to your list";
+    b.disabled = true;
+    announce("All saved.");
+  });
+
+  // ---- Photos fade in once loaded (with a shimmer while they load) ---------------------
+  const markLoaded = img => img.classList.add("ld");
+  document.addEventListener("load", e => { if (e.target.tagName === "IMG") markLoaded(e.target); }, true);
+  document.addEventListener("error", e => { if (e.target.tagName === "IMG") markLoaded(e.target); }, true);
+  const markDone = () => document.querySelectorAll("img:not(.ld)").forEach(img => { if (img.complete) markLoaded(img); });
+
+  // ---- For the admin page (assets/js/admin.js) -------------------------------------------
+  window.PLUGE.app = { db: () => dbReady, authKnown, user: () => user, openAccount, announce, esc, money, price, byId };
+
   // ---- Misc ----------------------------------------------------------------
   function announce(text) {
     const live = $("#live");
@@ -2247,7 +2666,9 @@
   syncSavedButtons();
   syncMenu();
   syncAccountButton();
-  initAccounts();
+  dbReady = initAccounts();
+  renderPromo();
+  loadReviewStats();
   if (!still && $("#hero-title")) $("#hero-title").classList.add("play");
   // The home page's sections below the campaign photo are drawn just after the first paint, so the
   // photo shows sooner.
@@ -2260,7 +2681,9 @@
     updateFit();
     syncSavedButtons();
     if (tv || fitStage) requestAnimationFrame(frame);
+    markDone();
   });
+  markDone();
 
   // Shopify's order status page can link back with ?ordered=1, which empties the bag after a purchase.
   if (new URLSearchParams(location.search).has("ordered") && IS_HOME) {
