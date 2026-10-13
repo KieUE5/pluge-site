@@ -274,3 +274,13 @@ end;
 $$;
 revoke all on function public.admin_overview() from public, anon;
 grant execute on function public.admin_overview() to authenticated;
+
+-- ---- Who may touch which table ------------------------------------------------------------------
+-- Spelled out rather than left to Supabase's defaults (newer projects grant less by default).
+-- The row rules above still decide which rows each person sees.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.shopper_state to authenticated;
+grant select on public.orders to authenticated;
+grant select, delete on public.drop_alerts, public.restock_alerts, public.contact_messages to authenticated;
+grant select on public.reviews to anon, authenticated;
+grant delete on public.reviews to authenticated;
